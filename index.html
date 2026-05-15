@@ -1,0 +1,1887 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Daily Tracker</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <style>
+    /* ─── Variables de tema ─────────────────────────────────────────── */
+    :root {
+      --bg:           #f7f5f0;
+      --surface:      #ffffff;
+      --surface-alt:  #f0ede6;
+      --border:       #e4dfd6;
+      --text:         #1a1916;
+      --text-muted:   #8a8580;
+      --accent:       #c4783a;
+      --accent-light: #f5ebe0;
+      --done:         #4a7c59;
+      --done-light:   #eaf3ec;
+      --danger:       #b85450;
+      --edit:         #5a7fa8;
+      --edit-light:   #eaf0f7;
+      --shadow-hover: 0 6px 24px rgba(0,0,0,0.10);
+      --radius:       12px;
+      --radius-sm:    7px;
+      --transition:   0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* ─── Reset & base ──────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 90px;
+    }
+
+    /* ─── Header ────────────────────────────────────────────────────── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 28px 0 24px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(8px);
+    }
+
+    .header-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .header-left h1 {
+      font-family: 'Lora', serif;
+      font-size: 1.75rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+    }
+
+    .header-left .fecha {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 3px;
+      font-weight: 300;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .progreso { text-align: right; flex-shrink: 0; }
+
+    .progreso-numero {
+      font-family: 'Lora', serif;
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .progreso-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 300;
+      letter-spacing: 0.03em;
+    }
+
+    .barra-progreso {
+      width: 80px;
+      height: 3px;
+      background: var(--border);
+      border-radius: 99px;
+      margin-top: 6px;
+      margin-left: auto;
+      overflow: hidden;
+    }
+
+    .barra-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--done));
+      border-radius: 99px;
+      transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* ─── Main: layout de dos columnas ─────────────────────────────── */
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 24px 0;
+      display: grid;
+      grid-template-columns: 1fr 480px;
+      grid-template-rows: auto;
+      column-gap: 32px;
+      align-items: start;
+    }
+
+    /* Columna izquierda: tareas + cierre */
+    .col-izquierda {
+      min-width: 0; /* evita overflow en grid */
+    }
+
+    /* Columna derecha: stock, sticky */
+    .col-derecha {
+      position: sticky;
+      top: calc(/* altura header aprox */ 90px + 16px);
+      min-width: 0;
+    }
+
+    /* ─── Campo nueva tarea ─────────────────────────────────────────── */
+    .nueva-tarea {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+
+    .nueva-tarea input {
+      flex: 1;
+      padding: 14px 18px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      background: var(--surface);
+      color: var(--text);
+      transition: border-color var(--transition), box-shadow var(--transition);
+      outline: none;
+    }
+
+    .nueva-tarea input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-light);
+    }
+
+    .nueva-tarea input::placeholder { color: var(--text-muted); font-weight: 300; }
+
+    .btn-agregar {
+      padding: 14px 22px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
+      white-space: nowrap;
+    }
+
+    .btn-agregar:hover {
+      background: #b36830;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(196,120,58,0.35);
+    }
+
+    .btn-agregar:active { transform: translateY(0); }
+
+    /* ─── Filtros ───────────────────────────────────────────────────── */
+    .filtros {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+    }
+
+    .btn-filtro {
+      padding: 7px 16px;
+      border: 1.5px solid transparent;
+      border-radius: 99px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 500;
+      cursor: pointer;
+      background: transparent;
+      color: var(--text-muted);
+      transition: all var(--transition);
+      letter-spacing: 0.01em;
+    }
+
+    .btn-filtro:hover { color: var(--text); background: var(--surface-alt); }
+    .btn-filtro.activo { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+    /* ─── Lista de tareas ───────────────────────────────────────────── */
+    #lista-tareas { display: flex; flex-direction: column; gap: 10px; }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes slideOut {
+      from { opacity: 1; transform: translateX(0); max-height: 300px; margin-bottom: 10px; }
+      to   { opacity: 0; transform: translateX(20px); max-height: 0; margin-bottom: 0; padding: 0; }
+    }
+
+    .tarea {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      transition: box-shadow var(--transition), border-color var(--transition);
+      animation: slideIn 0.28s cubic-bezier(0.4, 0, 0.2, 1) both;
+    }
+
+    .tarea:hover { box-shadow: var(--shadow-hover); border-color: #d4cfc8; }
+    .tarea.completada { background: var(--done-light); border-color: #c5deca; }
+    .tarea.editando { border-color: var(--edit); box-shadow: 0 0 0 3px var(--edit-light); }
+
+    .tarea.saliendo {
+      animation: slideOut 0.32s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    /* ─── Header de la tarea ────────────────────────────────────────── */
+    .tarea-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    /* Checkbox */
+    .checkbox-wrap { position: relative; flex-shrink: 0; margin-top: 2px; }
+
+    .checkbox-wrap input[type="checkbox"] {
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all var(--transition);
+      display: block;
+    }
+
+    .checkbox-wrap input[type="checkbox"]:hover { border-color: var(--accent); }
+
+    .checkbox-wrap input[type="checkbox"]:checked {
+      background: var(--done);
+      border-color: var(--done);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 10'%3E%3Cpath d='M1 5l3.5 3.5L11 1' stroke='white' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: 10px;
+    }
+
+    /* Texto / input de edición */
+    .tarea-texto {
+      flex: 1;
+      font-size: 0.95rem;
+      line-height: 1.45;
+      transition: color var(--transition);
+      word-break: break-word;
+      cursor: default;
+    }
+
+    .completada .tarea-texto {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+
+    /* Input inline para editar */
+    .tarea-input-edicion {
+      flex: 1;
+      padding: 4px 8px;
+      border: 1.5px solid var(--edit);
+      border-radius: var(--radius-sm);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      color: var(--text);
+      background: var(--surface);
+      outline: none;
+      box-shadow: 0 0 0 3px var(--edit-light);
+    }
+
+    /* Acciones de la tarea (editar + eliminar) */
+    .tarea-acciones {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+      margin-top: -2px;
+      opacity: 0;
+      transition: opacity var(--transition);
+    }
+
+    .tarea:hover .tarea-acciones { opacity: 1; }
+    .tarea.editando .tarea-acciones { opacity: 1; }
+
+    .btn-icono {
+      width: 28px;
+      height: 28px;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      cursor: pointer;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition);
+      color: var(--text-muted);
+    }
+
+    .btn-icono:hover { color: var(--text); background: var(--surface-alt); }
+    .btn-icono.editar:hover { background: var(--edit-light); color: var(--edit); }
+    .btn-icono.guardar { color: var(--done); }
+    .btn-icono.guardar:hover { background: var(--done-light); color: var(--done); }
+    .btn-icono.cancelar:hover { background: #fdecea; color: var(--danger); }
+    .btn-icono.eliminar:hover { background: #fdecea; color: var(--danger); }
+
+    /* ─── Notificación de pendientes de días anteriores ────────────── */
+    .notif-pendientes {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: #fff8f0;
+      border: 1.5px solid #f0d5b8;
+      border-radius: var(--radius-sm);
+      margin-bottom: 18px;
+      font-size: 0.82rem;
+      color: #8a5a20;
+      animation: slideIn 0.25s ease both;
+    }
+
+    .notif-pendientes .notif-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 22px;
+      height: 22px;
+      padding: 0 6px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 99px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      flex-shrink: 0;
+    }
+
+    /* ─── Grupo de día anterior ─────────────────────────────────────── */
+    .grupo-dia {
+      margin-bottom: 12px;
+    }
+
+    .grupo-dia-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      border: 1.5px solid var(--border);
+      background: var(--surface-alt);
+      user-select: none;
+      transition: background var(--transition), border-color var(--transition);
+    }
+
+    .grupo-dia-header:hover {
+      background: #eae7e0;
+      border-color: #d0cbc2;
+    }
+
+    .grupo-dia-fecha {
+      font-family: 'Lora', serif;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text);
+      flex: 1;
+      letter-spacing: -0.01em;
+    }
+
+    .grupo-dia-stats {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .grupo-stat-pend {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 8px;
+      background: #fdecd7;
+      color: var(--accent);
+      border-radius: 99px;
+      font-weight: 500;
+    }
+
+    .grupo-stat-comp {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 8px;
+      background: var(--done-light);
+      color: var(--done);
+      border-radius: 99px;
+      font-weight: 500;
+    }
+
+    .grupo-chevron {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      transition: transform var(--transition);
+      flex-shrink: 0;
+    }
+
+    .grupo-dia.abierto .grupo-chevron { transform: rotate(180deg); }
+
+    .grupo-dia-cuerpo {
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .grupo-dia.abierto .grupo-dia-cuerpo { max-height: 9999px; }
+
+    .grupo-dia-lista {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-top: 8px;
+    }
+
+    /* ─── Fecha de la tarea ─────────────────────────────────────────── */
+    .tarea-fecha {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 300;
+      margin-top: 5px;
+      padding-left: 32px; /* alinea con el texto, debajo del checkbox */
+      letter-spacing: 0.01em;
+    }
+
+    /* ─── Campo de resolución ───────────────────────────────────────── */
+
+    /* Botón "Ver resolución" que aparece debajo de la tarea completada */
+    .btn-ver-resolucion {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+      padding: 5px 12px;
+      background: transparent;
+      border: 1.5px solid #c5deca;
+      border-radius: 99px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: var(--done);
+      cursor: pointer;
+      transition: all var(--transition);
+      max-width: 100%;
+    }
+
+    .btn-ver-resolucion:hover {
+      background: var(--done-light);
+      border-color: var(--done);
+    }
+
+    /* Flecha rotatoria */
+    .btn-ver-resolucion .flecha {
+      display: inline-block;
+      transition: transform var(--transition);
+      font-style: normal;
+      font-size: 0.7rem;
+    }
+
+    .btn-ver-resolucion.abierto .flecha { transform: rotate(180deg); }
+
+    /* Preview de una línea cuando hay texto guardado */
+    .btn-ver-resolucion .preview {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 300px;
+      color: var(--text-muted);
+      font-weight: 300;
+      font-style: italic;
+    }
+
+    /* Contenedor desplegable */
+    .resolucion-wrap {
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                  opacity 0.3s ease,
+                  margin-top 0.3s ease;
+      margin-top: 0;
+    }
+
+    /* Al abrir: sin límite de altura para que resize funcione libremente */
+    .resolucion-wrap.visible { max-height: 2000px; opacity: 1; margin-top: 8px; }
+
+    .resolucion-inner { padding-top: 12px; border-top: 1px solid #ddeadf; }
+
+    .resolucion-label {
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: var(--done);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .resolucion-label::before {
+      content: '';
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--done);
+    }
+
+    .resolucion-input {
+      width: 100%;
+      padding: 10px 13px;
+      border: 1.5px solid #c5deca;
+      border-radius: var(--radius-sm);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 300;
+      color: var(--text);
+      background: rgba(255,255,255,0.7);
+      resize: vertical;          /* arrastrable hacia abajo */
+      outline: none;
+      transition: border-color var(--transition), box-shadow var(--transition);
+      min-height: 72px;
+      line-height: 1.55;
+    }
+
+    .resolucion-input:focus {
+      border-color: var(--done);
+      box-shadow: 0 0 0 3px rgba(74,124,89,0.12);
+    }
+
+    .resolucion-input::placeholder { color: #a8c4ae; font-style: italic; }
+
+    /* ─── Estado vacío ──────────────────────────────────────────────── */
+    .estado-vacio {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+
+    .estado-vacio .icono { font-size: 2.2rem; margin-bottom: 12px; opacity: 0.4; }
+
+    .estado-vacio p {
+      font-family: 'Lora', serif;
+      font-style: italic;
+      font-size: 0.95rem;
+    }
+
+    /* ─── Sección Cierre del día ────────────────────────────────────── */
+    .cierre-seccion {
+      margin-top: 48px;
+      padding-top: 36px;
+      border-top: 1px solid var(--border);
+    }
+
+    .cierre-titulo {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .cierre-titulo h2 {
+      font-family: 'Lora', serif;
+      font-size: 1.2rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    .cierre-subtitulo {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 300;
+      margin-bottom: 16px;
+    }
+
+    /* Chips de sugerencias */
+    .sugerencias-wrap {
+      margin-bottom: 14px;
+    }
+
+    .sugerencias-label {
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .sugerencias-lista {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .chip-sugerencia {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 99px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.8rem;
+      color: var(--text);
+      cursor: pointer;
+      transition: all var(--transition);
+      max-width: 260px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .chip-sugerencia:hover {
+      border-color: var(--accent);
+      background: var(--accent-light);
+      color: var(--accent);
+    }
+
+    /* Indicador de flash al insertar */
+    @keyframes chipFlash {
+      0%   { background: var(--done-light); border-color: var(--done); }
+      100% { background: var(--surface); border-color: var(--border); }
+    }
+
+    .chip-sugerencia.insertado {
+      animation: chipFlash 0.6s ease forwards;
+    }
+
+    .chip-icono { font-size: 0.75rem; flex-shrink: 0; }
+
+    /* Nombre de la tarea truncado dentro del chip */
+    .chip-nombre {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Sin sugerencias disponibles */
+    .sugerencias-vacio {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      font-style: italic;
+      padding: 4px 0;
+    }
+
+    /* Textarea del cierre */
+    .cierre-textarea {
+      width: 100%;
+      min-height: 140px;
+      padding: 16px 18px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.93rem;
+      font-weight: 300;
+      color: var(--text);
+      background: var(--surface);
+      resize: vertical;
+      outline: none;
+      line-height: 1.65;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+
+    .cierre-textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-light);
+    }
+
+    .cierre-textarea::placeholder {
+      color: var(--text-muted);
+      font-style: italic;
+      font-weight: 300;
+    }
+
+    .cierre-pie {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 8px;
+    }
+
+    .cierre-chars {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 300;
+    }
+
+    /* ─── Barra inferior ────────────────────────────────────────────── */
+    .barra-inferior {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: rgba(247,245,240,0.92);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .btn-exportar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 28px;
+      background: var(--text);
+      color: var(--bg);
+      border: none;
+      border-radius: var(--radius);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 500;
+      cursor: pointer;
+      letter-spacing: 0.01em;
+      transition: all var(--transition);
+    }
+
+    .btn-exportar:hover {
+      background: #2e2b27;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+    }
+
+    .btn-exportar:active { transform: translateY(0); }
+    .btn-exportar svg { width: 16px; height: 16px; opacity: 0.8; }
+
+    /* ─── Sección Stock de máquinas ────────────────────────────────── */
+    .stock-seccion {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: none;
+    }
+
+    .stock-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .stock-header h2 {
+      font-family: 'Lora', serif;
+      font-size: 1.2rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    .stock-subtitulo {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 300;
+      margin-bottom: 18px;
+    }
+
+    .btn-agregar-maquina {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+
+    .btn-agregar-maquina:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-light);
+    }
+
+    /* Tabla */
+    .stock-tabla-wrap {
+      overflow-x: auto;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .stock-tabla {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.87rem;
+    }
+
+    .stock-tabla thead th {
+      padding: 10px 10px;
+      text-align: left;
+      font-size: 0.68rem;
+      font-weight: 500;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      background: var(--surface-alt);
+      border-bottom: 1.5px solid var(--border);
+      white-space: nowrap;
+    }
+
+    /* Anchos fijos para que las 4 columnas quepan siempre */
+    .stock-tabla col.c-host        { width: 22%; }
+    .stock-tabla col.c-serial      { width: 28%; }
+    .stock-tabla col.c-pertenencia { width: 24%; }
+    .stock-tabla col.c-usuario     { width: 22%; }
+    .stock-tabla col.c-accion      { width: 32px; }
+
+    .stock-tabla thead th:last-child {
+      width: 32px;
+      text-align: center;
+    }
+
+    .stock-tabla tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background var(--transition);
+    }
+
+    .stock-tabla tbody tr:last-child { border-bottom: none; }
+    .stock-tabla tbody tr:hover { background: #faf9f6; }
+
+    .stock-tabla td {
+      padding: 0;
+      vertical-align: middle;
+    }
+
+    /* Input de celda */
+    .stock-cell-input {
+      width: 100%;
+      padding: 9px 10px;
+      border: none;
+      background: transparent;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.87rem;
+      font-weight: 300;
+      color: var(--text);
+      outline: none;
+      transition: background var(--transition), box-shadow var(--transition);
+      min-width: 90px;
+    }
+
+    .stock-cell-input:focus {
+      background: var(--accent-light);
+      box-shadow: inset 0 -2px 0 var(--accent);
+    }
+
+    .stock-cell-input::placeholder { color: #c8c4be; }
+
+    /* Botón eliminar fila */
+    .td-accion {
+      text-align: center;
+      width: 36px;
+      padding: 0 6px !important;
+    }
+
+    .btn-fila-eliminar {
+      width: 26px;
+      height: 26px;
+      border: none;
+      background: transparent;
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: all var(--transition);
+    }
+
+    tr:hover .btn-fila-eliminar { opacity: 1; }
+    .btn-fila-eliminar:hover { background: #fdecea; color: var(--danger); }
+
+    /* Fila vacía */
+    .stock-vacio {
+      text-align: center;
+      padding: 32px 20px;
+      color: var(--text-muted);
+      font-style: italic;
+      font-size: 0.88rem;
+    }
+
+    /* Animación fila entrada */
+    @keyframes rowIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .stock-tabla tbody tr.nueva-fila { animation: rowIn 0.22s ease both; }
+
+    /* ─── Responsive ────────────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+      .col-derecha {
+        position: static;
+        border-top: 1px solid var(--border);
+        padding-top: 36px;
+        margin-top: 48px;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .header-inner { flex-direction: column; align-items: flex-start; }
+      .progreso { text-align: left; }
+      .barra-progreso { margin-left: 0; }
+      .nueva-tarea { flex-direction: column; }
+      .btn-agregar { width: 100%; }
+      .chip-sugerencia { max-width: 100%; }
+      .stock-cell-input { min-width: 70px; font-size: 0.82rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ─── Header ──────────────────────────────────────────────────────── -->
+<header>
+  <div class="header-inner">
+    <div class="header-left">
+      <h1>Daily Tracker</h1>
+      <div class="fecha" id="fecha-hoy"></div>
+    </div>
+    <div class="progreso">
+      <div class="progreso-numero" id="contador">0 / 0</div>
+      <div class="progreso-label">completadas</div>
+      <div class="barra-progreso">
+        <div class="barra-fill" id="barra-fill" style="width:0%"></div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ─── Main ────────────────────────────────────────────────────────── -->
+<main>
+
+  <!-- Columna izquierda: tareas + cierre del día -->
+  <div class="col-izquierda">
+
+    <!-- Campo nueva tarea -->
+    <div class="nueva-tarea">
+      <input
+        type="text"
+        id="input-nueva"
+        placeholder="Agregar nueva tarea…"
+        autocomplete="off"
+        maxlength="200"
+      />
+      <button class="btn-agregar" id="btn-agregar">Agregar</button>
+    </div>
+
+    <!-- Filtros -->
+    <div class="filtros">
+      <button class="btn-filtro activo" data-filtro="todas">Todas</button>
+      <button class="btn-filtro" data-filtro="pendientes">Pendientes</button>
+      <button class="btn-filtro" data-filtro="completadas">Completadas</button>
+    </div>
+
+    <!-- Lista de tareas -->
+    <div id="lista-tareas"></div>
+
+    <!-- Sección Cierre del día -->
+    <section class="cierre-seccion">
+      <div class="cierre-titulo">
+        <h2>Cierre del día</h2>
+      </div>
+      <p class="cierre-subtitulo">Reflexión libre sobre cómo fue el día. Podés insertar las resoluciones de tus tareas completadas como punto de partida.</p>
+
+      <div class="sugerencias-wrap" id="sugerencias-wrap">
+        <div class="sugerencias-label">Insertar resolución de tarea</div>
+        <div class="sugerencias-lista" id="sugerencias-lista"></div>
+      </div>
+
+      <textarea
+        id="cierre-textarea"
+        class="cierre-textarea"
+        placeholder="¿Cómo fue el día? ¿Qué aprendiste? ¿Qué quedó pendiente para mañana?…"
+        maxlength="3000"
+      ></textarea>
+      <div class="cierre-pie">
+        <span class="cierre-chars" id="cierre-chars">0 / 3000</span>
+      </div>
+    </section>
+
+  </div><!-- /col-izquierda -->
+
+  <!-- Columna derecha: stock de máquinas (sticky) -->
+  <div class="col-derecha">
+    <section class="stock-seccion">
+      <div class="stock-header">
+        <h2>Stock de máquinas</h2>
+        <button class="btn-agregar-maquina" id="btn-agregar-maquina">
+          + Agregar máquina
+        </button>
+      </div>
+      <p class="stock-subtitulo">Inventario de equipos disponibles. Editá las celdas directamente.</p>
+
+      <div class="stock-tabla-wrap">
+        <table class="stock-tabla">
+          <colgroup>
+            <col class="c-host" />
+            <col class="c-serial" />
+            <col class="c-pertenencia" />
+            <col class="c-usuario" />
+            <col class="c-accion" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Host</th>
+              <th>Serial Number</th>
+              <th>Pertenencia</th>
+              <th>Usuario</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="stock-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div><!-- /col-derecha -->
+
+</main>
+
+<!-- ─── Barra inferior ───────────────────────────────────────────────── -->
+<div class="barra-inferior">
+  <button class="btn-exportar" id="btn-exportar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+      <polyline points="7 10 12 15 17 10"/>
+      <line x1="12" y1="15" x2="12" y2="3"/>
+    </svg>
+    Exportar a PDF
+  </button>
+</div>
+
+<script>
+  /* ─── Estado ──────────────────────────────────────────────────────── */
+  let tareas = [];
+  let filtroActivo = 'todas';
+  let maquinas = [];
+
+  /* ─── localStorage ────────────────────────────────────────────────── */
+  function cargarDesdeStorage() {
+    try { tareas = JSON.parse(localStorage.getItem('daily-tracker-tareas') || '[]'); }
+    catch { tareas = []; }
+  }
+
+  function guardarEnStorage() {
+    localStorage.setItem('daily-tracker-tareas', JSON.stringify(tareas));
+  }
+
+  function cargarMaquinas() {
+    try { maquinas = JSON.parse(localStorage.getItem('daily-tracker-maquinas') || '[]'); }
+    catch { maquinas = []; }
+  }
+
+  function guardarMaquinas() {
+    localStorage.setItem('daily-tracker-maquinas', JSON.stringify(maquinas));
+  }
+
+  function cargarCierre() {
+    return localStorage.getItem('daily-tracker-cierre') || '';
+  }
+
+  function guardarCierre(texto) {
+    localStorage.setItem('daily-tracker-cierre', texto);
+  }
+
+  /* ─── ID único ────────────────────────────────────────────────────── */
+  function generarId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2);
+  }
+
+  /* ─── Fecha en header ─────────────────────────────────────────────── */
+  function mostrarFecha() {
+    const hoy = new Date().toLocaleDateString('es-AR', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+    document.getElementById('fecha-hoy').textContent = hoy;
+  }
+
+  /* ─── Progreso ────────────────────────────────────────────────────── */
+  function actualizarProgreso() {
+    const total = tareas.length;
+    const comp  = tareas.filter(t => t.completada).length;
+    document.getElementById('contador').textContent = `${comp} / ${total}`;
+    const pct = total === 0 ? 0 : Math.round((comp / total) * 100);
+    document.getElementById('barra-fill').style.width = pct + '%';
+  }
+
+  /* ─── Escape HTML ─────────────────────────────────────────────────── */
+  function esc(str) {
+    return String(str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  /* ─── Helpers de fecha ───────────────────────────────────────────── */
+  function claveDelDia(iso) {
+    /* Devuelve "2026-05-14" a partir de un ISO string */
+    return iso ? iso.slice(0, 10) : '1970-01-01';
+  }
+
+  function esHoy(iso) {
+    return claveDelDia(iso) === new Date().toISOString().slice(0, 10);
+  }
+
+  function formatearEncabezadoDia(clave) {
+    /* "2026-05-13" → "martes 13 de mayo de 2026" */
+    const [y, m, d] = clave.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString('es-AR', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+    });
+  }
+
+  /* ─── Renderizar lista ────────────────────────────────────────────── */
+  function renderizar() {
+    const contenedor = document.getElementById('lista-tareas');
+
+    let lista = tareas;
+    if (filtroActivo === 'pendientes')  lista = tareas.filter(t => !t.completada);
+    if (filtroActivo === 'completadas') lista = tareas.filter(t =>  t.completada);
+
+    if (lista.length === 0) {
+      const msgs = {
+        todas:       'Todavía no hay tareas. ¡Empezá el día agregando una!',
+        pendientes:  'No hay tareas pendientes.',
+        completadas: 'Todavía no completaste ninguna tarea hoy.',
+      };
+      contenedor.innerHTML = `
+        <div class="estado-vacio">
+          <div class="icono">◎</div>
+          <p>${msgs[filtroActivo]}</p>
+        </div>`;
+      actualizarProgreso();
+      renderizarSugerencias();
+      return;
+    }
+
+    contenedor.innerHTML = '';
+
+    /* Separar tareas de hoy vs días anteriores */
+    const deHoy      = lista.filter(t =>  esHoy(t.creadaEn));
+    const anteriores = lista.filter(t => !esHoy(t.creadaEn));
+
+    /* ── Notificación de pendientes de días anteriores ── */
+    const pendAnteriores = anteriores.filter(t => !t.completada).length;
+    if (pendAnteriores > 0) {
+      const notif = document.createElement('div');
+      notif.className = 'notif-pendientes';
+      notif.innerHTML = `
+        <span class="notif-badge">${pendAnteriores}</span>
+        <span>tarea${pendAnteriores !== 1 ? 's' : ''} pendiente${pendAnteriores !== 1 ? 's' : ''} de días anteriores</span>`;
+      contenedor.appendChild(notif);
+    }
+
+    /* ── Grupos de días anteriores (agrupados por clave de día) ── */
+    if (anteriores.length > 0) {
+      /* Agrupar por día, ordenados del más reciente al más antiguo */
+      const porDia = {};
+      anteriores.forEach(t => {
+        const k = claveDelDia(t.creadaEn);
+        if (!porDia[k]) porDia[k] = [];
+        porDia[k].push(t);
+      });
+
+      const diasOrdenados = Object.keys(porDia).sort((a, b) => b.localeCompare(a));
+
+      diasOrdenados.forEach(clave => {
+        const tareasDelDia = porDia[clave];
+        const pend = tareasDelDia.filter(t => !t.completada).length;
+        const comp = tareasDelDia.filter(t =>  t.completada).length;
+
+        const grupo = document.createElement('div');
+        grupo.className = 'grupo-dia'; /* cerrado por defecto */
+
+        const statPend = pend > 0
+          ? `<span class="grupo-stat-pend">${pend} pendiente${pend !== 1 ? 's' : ''}</span>` : '';
+        const statComp = comp > 0
+          ? `<span class="grupo-stat-comp">${comp} completada${comp !== 1 ? 's' : ''}</span>` : '';
+
+        grupo.innerHTML = `
+          <div class="grupo-dia-header">
+            <span class="grupo-dia-fecha">${formatearEncabezadoDia(clave)}</span>
+            <div class="grupo-dia-stats">${statPend}${statComp}</div>
+            <span class="grupo-chevron">▾</span>
+          </div>
+          <div class="grupo-dia-cuerpo">
+            <div class="grupo-dia-lista"></div>
+          </div>`;
+
+        /* Toggle al hacer clic en el header */
+        grupo.querySelector('.grupo-dia-header').addEventListener('click', () => {
+          grupo.classList.toggle('abierto');
+        });
+
+        const listaEl = grupo.querySelector('.grupo-dia-lista');
+        tareasDelDia.forEach(t => listaEl.appendChild(crearElementoTarea(t)));
+
+        contenedor.appendChild(grupo);
+      });
+    }
+
+    /* ── Tareas de hoy ── */
+    if (deHoy.length > 0) {
+      deHoy.forEach(t => contenedor.appendChild(crearElementoTarea(t)));
+    } else if (anteriores.length === 0) {
+      /* Sin tareas en absoluto (filtro activo) */
+    }
+
+    actualizarProgreso();
+    renderizarSugerencias();
+  }
+
+  /* ─── Crear elemento de tarea ─────────────────────────────────────── */
+  function crearElementoTarea(tarea) {
+    const el = document.createElement('div');
+    el.className = 'tarea' + (tarea.completada ? ' completada' : '');
+    el.dataset.id = tarea.id;
+
+    /* El botón toggle sólo aparece si la tarea está completada */
+    const previewTexto = tarea.resolucion && tarea.resolucion.trim()
+      ? `<span class="preview">— ${esc(tarea.resolucion.trim())}</span>`
+      : '';
+
+    /* Formatear fecha: "14 may. 2026, 09:32" */
+    const fechaFormateada = tarea.creadaEn
+      ? new Date(tarea.creadaEn).toLocaleString('es-AR', {
+          day: '2-digit', month: 'short', year: 'numeric',
+          hour: '2-digit', minute: '2-digit'
+        })
+      : '';
+
+    el.innerHTML = `
+      <div class="tarea-header">
+        <div class="checkbox-wrap">
+          <input type="checkbox" id="check-${tarea.id}"
+            ${tarea.completada ? 'checked' : ''}
+            aria-label="Marcar como completada" />
+        </div>
+        <label class="tarea-texto" for="check-${tarea.id}">${esc(tarea.texto)}</label>
+        <div class="tarea-acciones">
+          <button class="btn-icono editar" title="Editar tarea" data-accion="editar">✎</button>
+          <button class="btn-icono eliminar" title="Eliminar tarea" data-accion="eliminar">✕</button>
+        </div>
+      </div>
+      ${fechaFormateada ? `<div class="tarea-fecha">${fechaFormateada}</div>` : ''}
+      ${tarea.completada ? `
+      <button class="btn-ver-resolucion" data-accion="toggle-res">
+        <i class="flecha">▾</i>
+        <span>¿Cómo lo resolví?</span>
+        ${previewTexto}
+      </button>` : ''}
+      <div class="resolucion-wrap">
+        <div class="resolucion-inner">
+          <div class="resolucion-label">¿Cómo lo resolví?</div>
+          <textarea class="resolucion-input"
+            placeholder="Describí brevemente cómo resolviste esta tarea…"
+            maxlength="500">${esc(tarea.resolucion || '')}</textarea>
+        </div>
+      </div>`;
+
+    /* Eventos */
+    el.querySelector('input[type="checkbox"]').addEventListener('change', e => {
+      toggleCompletada(tarea.id, e.target.checked, el);
+    });
+
+    el.querySelector('.resolucion-input').addEventListener('input', e => {
+      guardarResolucion(tarea.id, e.target.value);
+      /* Actualizar el preview en el botón sin re-renderizar */
+      const btnRes = el.querySelector('.btn-ver-resolucion');
+      if (btnRes) {
+        let prev = btnRes.querySelector('.preview');
+        const val = e.target.value.trim();
+        if (val && !prev) {
+          prev = document.createElement('span');
+          prev.className = 'preview';
+          btnRes.appendChild(prev);
+        }
+        if (prev) prev.textContent = val ? `— ${val}` : '';
+      }
+    });
+
+    /* Botón toggle resolución */
+    const btnRes = el.querySelector('[data-accion="toggle-res"]');
+    if (btnRes) {
+      btnRes.addEventListener('click', () => {
+        const wrap = el.querySelector('.resolucion-wrap');
+        const abierto = wrap.classList.toggle('visible');
+        btnRes.classList.toggle('abierto', abierto);
+        if (abierto) el.querySelector('.resolucion-input').focus();
+      });
+    }
+
+    el.querySelector('[data-accion="editar"]').addEventListener('click', () => {
+      iniciarEdicion(tarea.id, el);
+    });
+
+    el.querySelector('[data-accion="eliminar"]').addEventListener('click', () => {
+      eliminarTarea(tarea.id, el);
+    });
+
+    /* Doble clic en el texto también activa edición */
+    el.querySelector('.tarea-texto').addEventListener('dblclick', () => {
+      iniciarEdicion(tarea.id, el);
+    });
+
+    return el;
+  }
+
+  /* ─── Edición inline ──────────────────────────────────────────────── */
+  function iniciarEdicion(id, el) {
+    const tarea = tareas.find(t => t.id === id);
+    if (!tarea || tarea.completada) return; // no editar tareas completadas
+
+    el.classList.add('editando');
+
+    const labelEl    = el.querySelector('.tarea-texto');
+    const accionesEl = el.querySelector('.tarea-acciones');
+    const textoOriginal = tarea.texto;
+
+    /* Reemplazar label por input */
+    const inputEdicion = document.createElement('input');
+    inputEdicion.type = 'text';
+    inputEdicion.className = 'tarea-input-edicion';
+    inputEdicion.value = tarea.texto;
+    inputEdicion.maxLength = 200;
+    labelEl.replaceWith(inputEdicion);
+    inputEdicion.focus();
+    inputEdicion.select();
+
+    /* Reemplazar botones por Guardar / Cancelar */
+    accionesEl.innerHTML = `
+      <button class="btn-icono guardar" title="Guardar (Enter)" data-accion="guardar">✓</button>
+      <button class="btn-icono cancelar" title="Cancelar (Esc)" data-accion="cancelar">✕</button>`;
+
+    function confirmar() {
+      const nuevoTexto = inputEdicion.value.trim();
+      if (nuevoTexto) {
+        tarea.texto = nuevoTexto;
+        guardarEnStorage();
+      }
+      finalizarEdicion();
+    }
+
+    function cancelar() {
+      tarea.texto = textoOriginal;
+      finalizarEdicion();
+    }
+
+    function finalizarEdicion() {
+      el.classList.remove('editando');
+      renderizar();
+    }
+
+    accionesEl.querySelector('[data-accion="guardar"]').addEventListener('click', confirmar);
+    accionesEl.querySelector('[data-accion="cancelar"]').addEventListener('click', cancelar);
+
+    inputEdicion.addEventListener('keydown', e => {
+      if (e.key === 'Enter')  { e.preventDefault(); confirmar(); }
+      if (e.key === 'Escape') { e.preventDefault(); cancelar();  }
+    });
+  }
+
+  /* ─── Toggle completada ───────────────────────────────────────────── */
+  function toggleCompletada(id, valor, el) {
+    const tarea = tareas.find(t => t.id === id);
+    if (!tarea) return;
+    tarea.completada = valor;
+    guardarEnStorage();
+    el.classList.toggle('completada', valor);
+    /* Sincronizar botón toggle y panel según el nuevo estado */
+    const resWrap = el.querySelector('.resolucion-wrap');
+    let   btnToggle = el.querySelector('[data-accion="toggle-res"]');
+
+    if (valor) {
+      /* Agregar botón si no existe */
+      if (!btnToggle) {
+        btnToggle = document.createElement('button');
+        btnToggle.className = 'btn-ver-resolucion';
+        btnToggle.dataset.accion = 'toggle-res';
+        btnToggle.innerHTML = `<i class="flecha">▾</i><span>¿Cómo lo resolví?</span>`;
+        btnToggle.addEventListener('click', () => {
+          const abierto = resWrap.classList.toggle('visible');
+          btnToggle.classList.toggle('abierto', abierto);
+          if (abierto) el.querySelector('.resolucion-input').focus();
+        });
+        el.querySelector('.tarea-header').after(btnToggle);
+      }
+    } else {
+      /* Quitar botón y cerrar panel */
+      if (btnToggle) btnToggle.remove();
+      resWrap.classList.remove('visible');
+    }
+
+    actualizarProgreso();
+    renderizarSugerencias();
+  }
+
+  /* ─── Guardar resolución ──────────────────────────────────────────── */
+  function guardarResolucion(id, texto) {
+    const tarea = tareas.find(t => t.id === id);
+    if (tarea) { tarea.resolucion = texto; guardarEnStorage(); renderizarSugerencias(); }
+  }
+
+  /* ─── Eliminar tarea ──────────────────────────────────────────────── */
+  function eliminarTarea(id, el) {
+    el.classList.add('saliendo');
+    el.addEventListener('animationend', () => {
+      tareas = tareas.filter(t => t.id !== id);
+      guardarEnStorage();
+      renderizar();
+    }, { once: true });
+  }
+
+  /* ─── Agregar tarea ───────────────────────────────────────────────── */
+  function agregarTarea() {
+    const input = document.getElementById('input-nueva');
+    const texto = input.value.trim();
+    if (!texto) return;
+
+    tareas.unshift({
+      id: generarId(),
+      texto,
+      completada: false,
+      resolucion: '',
+      creadaEn: new Date().toISOString(),
+    });
+
+    guardarEnStorage();
+    input.value = '';
+    input.focus();
+    renderizar();
+  }
+
+  /* ─── Sección Cierre del día ──────────────────────────────────────── */
+
+  /* Renderiza los chips de sugerencias con las resoluciones disponibles */
+  function renderizarSugerencias() {
+    const lista = document.getElementById('sugerencias-lista');
+    const conResolucion = tareas.filter(t => t.completada && t.resolucion && t.resolucion.trim());
+
+    if (conResolucion.length === 0) {
+      lista.innerHTML = `<span class="sugerencias-vacio">Las resoluciones de tareas completadas aparecerán aquí.</span>`;
+      return;
+    }
+
+    lista.innerHTML = '';
+    conResolucion.forEach(tarea => {
+      const chip = document.createElement('button');
+      chip.className = 'chip-sugerencia';
+      chip.title = `${tarea.texto}: ${tarea.resolucion}`;
+      chip.innerHTML = `
+        <span class="chip-icono">+</span>
+        <span class="chip-nombre">${esc(tarea.texto)}</span>`;
+
+      chip.addEventListener('click', () => {
+        insertarSugerencia(tarea, chip);
+      });
+
+      lista.appendChild(chip);
+    });
+  }
+
+  /* Inserta la resolución de una tarea en el textarea del cierre */
+  function insertarSugerencia(tarea, chipEl) {
+    const textarea = document.getElementById('cierre-textarea');
+    const texto    = textarea.value;
+    const cursor   = textarea.selectionStart;
+
+    /* Formato a insertar */
+    const fragmento = (texto.length > 0 && !texto.endsWith('\n') ? '\n' : '')
+      + `• ${tarea.texto}: ${tarea.resolucion.trim()}`;
+
+    /* Insertar en la posición del cursor */
+    const nuevoTexto = texto.slice(0, cursor) + fragmento + texto.slice(cursor);
+    textarea.value = nuevoTexto;
+    guardarCierre(nuevoTexto);
+    actualizarContadorCierre();
+
+    /* Mover cursor al final del fragmento insertado */
+    const nuevoCursor = cursor + fragmento.length;
+    textarea.setSelectionRange(nuevoCursor, nuevoCursor);
+    textarea.focus();
+
+    /* Flash de confirmación en el chip */
+    chipEl.classList.add('insertado');
+    setTimeout(() => chipEl.classList.remove('insertado'), 600);
+  }
+
+  /* Contador de caracteres del cierre */
+  function actualizarContadorCierre() {
+    const textarea = document.getElementById('cierre-textarea');
+    document.getElementById('cierre-chars').textContent =
+      `${textarea.value.length} / 3000`;
+  }
+
+  /* ─── Filtros ─────────────────────────────────────────────────────── */
+  document.querySelectorAll('.btn-filtro').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.btn-filtro').forEach(b => b.classList.remove('activo'));
+      btn.classList.add('activo');
+      filtroActivo = btn.dataset.filtro;
+      renderizar();
+    });
+  });
+
+  /* ─── Input nueva tarea ───────────────────────────────────────────── */
+  document.getElementById('input-nueva').addEventListener('keydown', e => {
+    if (e.key === 'Enter') agregarTarea();
+  });
+  document.getElementById('btn-agregar').addEventListener('click', agregarTarea);
+
+  /* ─── Cierre del día: persistencia ───────────────────────────────── */
+  const cierreTextarea = document.getElementById('cierre-textarea');
+  cierreTextarea.addEventListener('input', () => {
+    guardarCierre(cierreTextarea.value);
+    actualizarContadorCierre();
+  });
+
+  /* ─── Stock de máquinas ───────────────────────────────────────────── */
+  const CAMPOS_MAQUINA = ['host', 'serial', 'pertenencia', 'usuario'];
+  const PLACEHOLDERS   = ['ej. PC-001', 'ej. SN-XYZ123', 'ej. IT / RRHH', 'ej. Juan Pérez'];
+
+  function renderizarStock() {
+    const tbody = document.getElementById('stock-tbody');
+    tbody.innerHTML = '';
+
+    if (maquinas.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" class="stock-vacio">Sin máquinas registradas. Agregá una con el botón de arriba.</td></tr>`;
+      return;
+    }
+
+    maquinas.forEach((maq, idx) => {
+      const tr = document.createElement('tr');
+      tr.dataset.idx = idx;
+
+      CAMPOS_MAQUINA.forEach((campo, ci) => {
+        const td = document.createElement('td');
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'stock-cell-input';
+        input.value = maq[campo] || '';
+        input.placeholder = PLACEHOLDERS[ci];
+        input.maxLength = 80;
+
+        /* Guardar al cambiar */
+        input.addEventListener('input', () => {
+          maquinas[idx][campo] = input.value;
+          guardarMaquinas();
+        });
+
+        /* Tab en última celda agrega fila nueva */
+        if (ci === CAMPOS_MAQUINA.length - 1) {
+          input.addEventListener('keydown', e => {
+            if (e.key === 'Tab' && !e.shiftKey && idx === maquinas.length - 1) {
+              e.preventDefault();
+              agregarMaquina(true);
+            }
+          });
+        }
+
+        td.appendChild(input);
+        tr.appendChild(td);
+      });
+
+      /* Botón eliminar fila */
+      const tdAcc = document.createElement('td');
+      tdAcc.className = 'td-accion';
+      const btnDel = document.createElement('button');
+      btnDel.className = 'btn-fila-eliminar';
+      btnDel.title = 'Eliminar fila';
+      btnDel.textContent = '✕';
+      btnDel.addEventListener('click', () => {
+        maquinas.splice(idx, 1);
+        guardarMaquinas();
+        renderizarStock();
+      });
+      tdAcc.appendChild(btnDel);
+      tr.appendChild(tdAcc);
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  function agregarMaquina(focusPrimera = false) {
+    maquinas.push({ host: '', serial: '', pertenencia: '', usuario: '' });
+    guardarMaquinas();
+    renderizarStock();
+
+    /* Enfocar la primera celda de la fila recién agregada */
+    const filas = document.querySelectorAll('#stock-tbody tr');
+    const ultima = filas[filas.length - 1];
+    if (ultima) {
+      ultima.classList.add('nueva-fila');
+      const primerInput = ultima.querySelector('.stock-cell-input');
+      if (primerInput) primerInput.focus();
+    }
+  }
+
+  document.getElementById('btn-agregar-maquina').addEventListener('click', () => agregarMaquina());
+
+  /* ─── Exportar a PDF ──────────────────────────────────────────────── */
+  document.getElementById('btn-exportar').addEventListener('click', exportarPDF);
+
+  function exportarPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+    const COLOR_TITULO = [26, 25, 22];
+    const COLOR_TEXTO  = [60, 57, 52];
+    const COLOR_MUTED  = [138, 133, 128];
+    const COLOR_ACCENT = [196, 120, 58];
+    const COLOR_DONE   = [74, 124, 89];
+    const COLOR_BORDE  = [228, 223, 214];
+
+    const margen = 22;
+    const ancho  = 210 - margen * 2;
+    let y = margen;
+
+    function checkPagina(esp = 20) {
+      if (y + esp > 280) { doc.addPage(); y = margen; }
+    }
+
+    /* Encabezado */
+    doc.setFillColor(...COLOR_BORDE);
+    doc.rect(0, 0, 210, 42, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(22);
+    doc.setTextColor(...COLOR_TITULO);
+    doc.text('Daily Tracker', margen, 20);
+
+    const fechaHoy = new Date().toLocaleDateString('es-AR', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(...COLOR_MUTED);
+    doc.text(fechaHoy.charAt(0).toUpperCase() + fechaHoy.slice(1), margen, 28);
+
+    const total = tareas.length;
+    const comp  = tareas.filter(t => t.completada).length;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...COLOR_ACCENT);
+    doc.text(`${comp} completadas · ${total - comp} pendientes · ${total} total`, margen, 36);
+
+    y = 54;
+    doc.setDrawColor(...COLOR_BORDE);
+    doc.setLineWidth(0.3);
+    doc.line(margen, y - 4, 210 - margen, y - 4);
+
+    /* Tareas completadas */
+    const tareasComp = tareas.filter(t => t.completada);
+    if (tareasComp.length > 0) {
+      checkPagina(16);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(...COLOR_DONE);
+      doc.text('Tareas completadas', margen, y);
+      y += 7;
+
+      tareasComp.forEach((tarea, i) => {
+        checkPagina(18);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9.5);
+        doc.setTextColor(...COLOR_TEXTO);
+        doc.text(`${i + 1}.`, margen, y);
+
+        doc.setFont('helvetica', 'normal');
+        const lineas = doc.splitTextToSize(tarea.texto, ancho - 10);
+        doc.text(lineas, margen + 7, y);
+
+        const anchoT = doc.getTextWidth(lineas[0]);
+        doc.setDrawColor(...COLOR_MUTED);
+        doc.setLineWidth(0.25);
+        doc.line(margen + 7, y - 0.8, margen + 7 + Math.min(anchoT, ancho - 10), y - 0.8);
+        y += lineas.length * 4 + 1;
+
+        if (tarea.resolucion && tarea.resolucion.trim()) {
+          checkPagina(12);
+          doc.setFont('helvetica', 'italic');
+          doc.setFontSize(8.5);
+          doc.setTextColor(...COLOR_MUTED);
+          doc.text('→', margen + 7, y);
+          doc.setFont('helvetica', 'normal');
+          const rLineas = doc.splitTextToSize(tarea.resolucion.trim(), ancho - 17);
+          doc.text(rLineas, margen + 12, y);
+          y += rLineas.length * 3.8 + 1;
+        }
+        y += 4;
+      });
+    }
+
+    /* Tareas pendientes */
+    const tareasPend = tareas.filter(t => !t.completada);
+    if (tareasPend.length > 0) {
+      checkPagina(20);
+      y += 4;
+      doc.setDrawColor(...COLOR_BORDE);
+      doc.setLineWidth(0.3);
+      doc.line(margen, y - 2, 210 - margen, y - 2);
+      y += 6;
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(...COLOR_ACCENT);
+      doc.text('Tareas pendientes', margen, y);
+      y += 7;
+
+      tareasPend.forEach(tarea => {
+        checkPagina(12);
+        doc.setDrawColor(...COLOR_MUTED);
+        doc.setLineWidth(0.4);
+        doc.rect(margen, y - 3.5, 3.5, 3.5);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9.5);
+        doc.setTextColor(...COLOR_TEXTO);
+        const lineas = doc.splitTextToSize(tarea.texto, ancho - 10);
+        doc.text(lineas, margen + 7, y);
+        y += lineas.length * 4 + 4;
+      });
+    }
+
+    /* Cierre del día */
+    const cierreTexto = document.getElementById('cierre-textarea').value.trim();
+    if (cierreTexto) {
+      checkPagina(24);
+      y += 6;
+      doc.setDrawColor(...COLOR_BORDE);
+      doc.setLineWidth(0.3);
+      doc.line(margen, y - 2, 210 - margen, y - 2);
+      y += 6;
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(...COLOR_TITULO);
+      doc.text('Cierre del día', margen, y);
+      y += 7;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9.5);
+      doc.setTextColor(...COLOR_TEXTO);
+      const cLineas = doc.splitTextToSize(cierreTexto, ancho);
+      cLineas.forEach(linea => {
+        checkPagina(6);
+        doc.text(linea, margen, y);
+        y += 5;
+      });
+    }
+
+    /* Stock de máquinas */
+    if (maquinas.length > 0) {
+      checkPagina(30);
+      y += 6;
+      doc.setDrawColor(...COLOR_BORDE);
+      doc.setLineWidth(0.3);
+      doc.line(margen, y - 2, 210 - margen, y - 2);
+      y += 6;
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(...COLOR_TITULO);
+      doc.text('Stock de máquinas', margen, y);
+      y += 8;
+
+      /* Cabecera de tabla */
+      const cols     = ['Host', 'Serial Number', 'Pertenencia', 'Usuario'];
+      const colX     = [margen, margen + 42, margen + 84, margen + 124];
+      const colAncho = [38, 38, 36, 42];
+
+      doc.setFillColor(...COLOR_BORDE);
+      doc.rect(margen, y - 4.5, ancho, 7, 'F');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(...COLOR_MUTED);
+      cols.forEach((c, i) => doc.text(c.toUpperCase(), colX[i], y));
+      y += 5;
+
+      doc.setDrawColor(...COLOR_BORDE);
+      doc.setLineWidth(0.25);
+      doc.line(margen, y - 1, 210 - margen, y - 1);
+
+      /* Filas */
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(...COLOR_TEXTO);
+
+      maquinas.forEach((maq, i) => {
+        checkPagina(9);
+        if (i % 2 === 1) {
+          doc.setFillColor(248, 246, 242);
+          doc.rect(margen, y - 4, ancho, 6.5, 'F');
+        }
+        const vals = [maq.host, maq.serial, maq.pertenencia, maq.usuario];
+        vals.forEach((v, ci) => {
+          const txt = (v || '—').substring(0, 28);
+          doc.text(txt, colX[ci], y);
+        });
+        y += 6.5;
+        doc.setDrawColor(...COLOR_BORDE);
+        doc.setLineWidth(0.15);
+        doc.line(margen, y - 1, 210 - margen, y - 1);
+      });
+    }
+
+    /* Pie de página */
+    const totalPags = doc.getNumberOfPages();
+    for (let p = 1; p <= totalPags; p++) {
+      doc.setPage(p);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(...COLOR_MUTED);
+      doc.text(`Daily Tracker · ${fechaHoy}`, margen, 292);
+      doc.text(`Página ${p} de ${totalPags}`, 210 - margen, 292, { align: 'right' });
+    }
+
+    doc.save(`daily-tracker-${new Date().toISOString().slice(0, 10)}.pdf`);
+  }
+
+  /* ─── Inicialización ──────────────────────────────────────────────── */
+  mostrarFecha();
+  cargarDesdeStorage();
+  renderizar();
+  cargarMaquinas();
+  renderizarStock();
+
+  /* Cargar cierre del día guardado */
+  const cierreGuardado = cargarCierre();
+  if (cierreGuardado) {
+    cierreTextarea.value = cierreGuardado;
+    actualizarContadorCierre();
+  }
+</script>
+
+</body>
+</html>
