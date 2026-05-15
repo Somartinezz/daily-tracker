@@ -545,7 +545,8 @@
     </div>
   </div>
   <div class="import-hint">
-    Columnas esperadas al importar: <strong>nombre</strong>, <strong>email</strong>, <strong>departamento</strong>, <strong>equipo</strong>, <strong>cargo</strong>
+    Soporta el inventario de Argentina directo (.xlsm). Lee la hoja <strong>Notebooks</strong> automáticamente.<br>
+    También reconoce: <strong>Principal usuario</strong>, <strong>Nombre de equipo</strong>, <strong>CeCo Usuario Principal</strong>, <strong>Fabricante</strong>, <strong>Modelo</strong>. Las filas "Disponible" se omiten.
   </div>
   <div class="usr-search" style="margin-top:14px">
     <span class="usr-search-icon">⌕</span>
@@ -1225,6 +1226,7 @@ document.getElementById('input-importar-file').addEventListener('change',async f
   const file=this.files[0]; if(!file) return;
   const ext=file.name.split('.').pop().toLowerCase();
   let rows=[];
+
   if(ext==='csv'){
     const text=await file.text();
     const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
@@ -1238,25 +1240,50 @@ document.getElementById('input-importar-file').addEventListener('change',async f
   } else {
     const buf=await file.arrayBuffer();
     const wb=XLSX.read(buf,{type:'array'});
-    const ws=wb.Sheets[wb.SheetNames[0]];
-    rows=XLSX.utils.sheet_to_json(ws,{defval:''});
-    rows=rows.map(r=>Object.fromEntries(Object.entries(r).map(([k,v])=>[k.trim().toLowerCase(),String(v)])));
+
+    /* Preferir hoja "Notebooks" si existe, sino la primera */
+    const hojaNombre = wb.SheetNames.find(n=>n.toLowerCase().includes('notebook')) || wb.SheetNames[0];
+    const ws=wb.Sheets[hojaNombre];
+
+    /* Algunos .xlsm tienen encabezado en fila 0, otros en fila 1 o 2.
+       Intentamos leerlo con raw:false para que convierta tipos. */
+    rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
+    rows=rows.map(r=>Object.fromEntries(
+      Object.entries(r).map(([k,v])=>[k.trim().toLowerCase().replace(/\s+/g,' '),String(v).trim()])
+    ));
   }
-  const camposMap={nombre:['nombre','name','apellido y nombre'],email:['email','correo','mail'],departamento:['departamento','dept','area','área'],equipo:['equipo','host','pc','computadora','maquina','máquina'],cargo:['cargo','puesto','rol','role']};
-  let importados=0;
+
+  /* Mapa de aliases — incluye columnas del inventario Argentina */
+  const camposMap={
+    nombre:   ['nombre','name','apellido y nombre','principal usuario','usuario','user','nombre usuario'],
+    email:    ['email','correo','mail','e-mail'],
+    departamento: ['departamento','dept','area','área','ceco usuario principal','ceco','centro de costos','cc'],
+    equipo:   ['equipo','host','pc','computadora','maquina','máquina','nombre de equipo','hostname','nombre equipo'],
+    cargo:    ['cargo','puesto','rol','role','fabricante','modelo','marca','tipo'],
+  };
+
+  /* Filtrar filas sin usuario (ej. "Disponible REP") */
+  const IGNORAR=/disponible|sin asignar|libre|n\/a|^-+$/i;
+
+  let importados=0, omitidos=0;
   for(const row of rows){
     const obj={activo:true};
     for(const [campo,aliases] of Object.entries(camposMap)){
-      const found=aliases.find(a=>row[a]!==undefined);
+      const found=aliases.find(a=>row[a]!==undefined&&row[a]!=='');
       obj[campo]=found?String(row[found]).trim():'';
     }
-    if(!obj.nombre) continue;
+    /* Combinar fabricante + modelo en cargo si cargo queda vacío */
+    if(!obj.cargo){
+      const fab=row['fabricante']||'', mod=row['modelo']||'';
+      obj.cargo=[fab,mod].filter(Boolean).join(' ');
+    }
+    if(!obj.nombre||IGNORAR.test(obj.nombre)){omitidos++;continue;}
     const {id}=await apiPost('/usuarios',obj);
     usuarios.push({id,...obj});
     importados++;
   }
   actualizarDatalist(); renderizarUsuarios();
-  alert(`${importados} usuario${importados!==1?'s':''} importado${importados!==1?'s':''} correctamente.`);
+  alert(`✅ ${importados} usuario${importados!==1?'s':''} importado${importados!==1?'s':''} correctamente.${omitidos>0?`\n⏭ ${omitidos} filas omitidas (sin usuario asignado).`:''}`);
   this.value='';
 });
 
