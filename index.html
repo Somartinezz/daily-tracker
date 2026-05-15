@@ -803,7 +803,7 @@ function crearElementoTarea(tarea){
         <button class="btn-icono eliminar" data-accion="eliminar">✕</button>
       </div>
     </div>
-    ${tarea.completada?`<button class="btn-ver-resolucion" data-accion="toggle-res"><i class="flecha">▾</i><span>¿Cómo lo resolví?</span>${previewTexto}</button>`:''}
+    <button class="btn-ver-resolucion" data-accion="toggle-res"><i class="flecha">▾</i><span>¿Cómo lo resolví?</span>${previewTexto}</button>
     <div class="resolucion-wrap">
       <div class="resolucion-inner">
         <div class="resolucion-label">¿Cómo lo resolví?</div>
@@ -867,19 +867,6 @@ function toggleCompletada(id,valor,el){
   tarea.completada=valor;
   apiPut(`/tareas/${id}`,{texto:tarea.texto,completada:valor,resolucion:tarea.resolucion,prioridad:tarea.prioridad,usuario_atendido:tarea.usuario_atendido});
   el.classList.toggle('completada',valor);
-  const resWrap=el.querySelector('.resolucion-wrap');
-  let btnToggle=el.querySelector('[data-accion="toggle-res"]');
-  if(valor){
-    if(!btnToggle){
-      btnToggle=document.createElement('button'); btnToggle.className='btn-ver-resolucion'; btnToggle.dataset.accion='toggle-res';
-      btnToggle.innerHTML=`<i class="flecha">▾</i><span>¿Cómo lo resolví?</span>`;
-      btnToggle.addEventListener('click',()=>{const abierto=resWrap.classList.toggle('visible');btnToggle.classList.toggle('abierto',abierto);if(abierto)el.querySelector('.resolucion-input').focus();});
-      el.querySelector('.tarea-header').after(btnToggle);
-    }
-  } else {
-    if(btnToggle) btnToggle.remove();
-    resWrap.classList.remove('visible');
-  }
   actualizarProgreso(); renderizarSugerencias(); actualizarTimeline();
 }
 
