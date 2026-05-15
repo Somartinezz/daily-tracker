@@ -10,22 +10,22 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { host, serial, pertenencia, usuario } = req.body;
+  const { host, serial, pertenencia, usuario, estado } = req.body;
   try {
     const { rows } = await db.query(
-      'INSERT INTO maquinas (host, serial, pertenencia, usuario) VALUES ($1,$2,$3,$4) RETURNING id',
-      [host ?? '', serial ?? '', pertenencia ?? '', usuario ?? '']
+      'INSERT INTO maquinas (host, serial, pertenencia, usuario, estado) VALUES ($1,$2,$3,$4,$5) RETURNING id',
+      [host ?? '', serial ?? '', pertenencia ?? '', usuario ?? '', estado ?? 'stock']
     );
     res.status(201).json({ id: rows[0].id });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.put('/:id', async (req, res) => {
-  const { host, serial, pertenencia, usuario } = req.body;
+  const { host, serial, pertenencia, usuario, estado } = req.body;
   try {
     await db.query(
-      'UPDATE maquinas SET host=$1, serial=$2, pertenencia=$3, usuario=$4 WHERE id=$5',
-      [host, serial, pertenencia, usuario, req.params.id]
+      'UPDATE maquinas SET host=$1, serial=$2, pertenencia=$3, usuario=$4, estado=$5 WHERE id=$6',
+      [host, serial, pertenencia, usuario, estado ?? 'stock', req.params.id]
     );
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }

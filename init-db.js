@@ -7,9 +7,12 @@ async function init() {
       texto       VARCHAR(200) NOT NULL,
       completada  BOOLEAN DEFAULT FALSE,
       resolucion  VARCHAR(500) DEFAULT '',
+      prioridad   VARCHAR(10) DEFAULT 'media',
       creada_en   TIMESTAMP DEFAULT NOW()
     )
   `);
+
+  await db.query(`ALTER TABLE tareas ADD COLUMN IF NOT EXISTS prioridad VARCHAR(10) DEFAULT 'media'`);
 
   await db.query(`
     CREATE TABLE IF NOT EXISTS maquinas (
@@ -18,9 +21,12 @@ async function init() {
       serial      VARCHAR(80) DEFAULT '',
       pertenencia VARCHAR(80) DEFAULT '',
       usuario     VARCHAR(80) DEFAULT '',
+      estado      VARCHAR(20) DEFAULT 'stock',
       creada_en   TIMESTAMP DEFAULT NOW()
     )
   `);
+
+  await db.query(`ALTER TABLE maquinas ADD COLUMN IF NOT EXISTS estado VARCHAR(20) DEFAULT 'stock'`);
 
   await db.query(`
     CREATE TABLE IF NOT EXISTS cierre_dia (
@@ -29,7 +35,15 @@ async function init() {
     )
   `);
 
-  console.log('Tablas creadas OK');
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS racha (
+      id        SERIAL PRIMARY KEY,
+      fecha     DATE NOT NULL,
+      conteo    INT DEFAULT 1
+    )
+  `);
+
+  console.log('Tablas OK');
   await db.end();
 }
 

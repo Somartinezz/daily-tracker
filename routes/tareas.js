@@ -10,22 +10,22 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { id, texto, completada, resolucion, creada_en } = req.body;
+  const { id, texto, completada, resolucion, prioridad, creada_en } = req.body;
   try {
     await db.query(
-      'INSERT INTO tareas (id, texto, completada, resolucion, creada_en) VALUES ($1,$2,$3,$4,$5)',
-      [id, texto, completada ?? false, resolucion ?? '', creada_en ?? new Date()]
+      'INSERT INTO tareas (id, texto, completada, resolucion, prioridad, creada_en) VALUES ($1,$2,$3,$4,$5,$6)',
+      [id, texto, completada ?? false, resolucion ?? '', prioridad ?? 'media', creada_en ?? new Date()]
     );
     res.status(201).json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.put('/:id', async (req, res) => {
-  const { texto, completada, resolucion } = req.body;
+  const { texto, completada, resolucion, prioridad } = req.body;
   try {
     await db.query(
-      'UPDATE tareas SET texto=$1, completada=$2, resolucion=$3 WHERE id=$4',
-      [texto, completada, resolucion, req.params.id]
+      'UPDATE tareas SET texto=$1, completada=$2, resolucion=$3, prioridad=$4 WHERE id=$5',
+      [texto, completada, resolucion, prioridad ?? 'media', req.params.id]
     );
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
