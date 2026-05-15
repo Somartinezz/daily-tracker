@@ -43,6 +43,21 @@ async function init() {
     )
   `);
 
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS usuarios (
+      id            SERIAL PRIMARY KEY,
+      nombre        VARCHAR(100) NOT NULL DEFAULT '',
+      email         VARCHAR(100) DEFAULT '',
+      departamento  VARCHAR(80)  DEFAULT '',
+      equipo        VARCHAR(80)  DEFAULT '',
+      cargo         VARCHAR(80)  DEFAULT '',
+      activo        BOOLEAN      DEFAULT TRUE,
+      creada_en     TIMESTAMP    DEFAULT NOW()
+    )
+  `);
+
+  await db.query(`ALTER TABLE tareas ADD COLUMN IF NOT EXISTS usuario_atendido VARCHAR(80) DEFAULT ''`);
+
   console.log('Tablas OK');
   await db.end();
 }

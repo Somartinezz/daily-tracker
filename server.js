@@ -15,6 +15,7 @@ app.use(express.static(path.join(__dirname)));
 app.use('/api/tareas',   require('./routes/tareas'));
 app.use('/api/maquinas', require('./routes/maquinas'));
 app.use('/api/cierre',   require('./routes/cierre'));
+app.use('/api/usuarios', require('./routes/usuarios'));
 
 /* Cualquier otra ruta devuelve el index.html */
 app.get('/{*path}', (req, res) => {
