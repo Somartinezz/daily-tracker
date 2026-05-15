@@ -75,19 +75,23 @@
     .input-usuario-atendido{flex:1;padding:9px 14px;border:1.5px solid var(--border);border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:0.84rem;background:var(--surface);color:var(--text);outline:none;transition:border-color var(--transition);}
     .input-usuario-atendido:focus{border-color:var(--accent);}
     .input-usuario-atendido::placeholder{color:var(--text-muted);font-weight:300;}
-    .btn-memoria{position:relative;padding:9px 14px;border:1.5px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text-muted);font-family:'DM Sans',sans-serif;font-size:0.84rem;cursor:pointer;transition:all var(--transition);display:flex;align-items:center;gap:6px;white-space:nowrap;}
-    .btn-memoria:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light);}
+    .btn-memoria{padding:9px 14px;border:1.5px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text-muted);font-family:'DM Sans',sans-serif;font-size:0.84rem;cursor:pointer;transition:all var(--transition);display:flex;align-items:center;gap:6px;white-space:nowrap;}
+    .btn-memoria:hover,.btn-memoria.activo{border-color:var(--accent);color:var(--accent);background:var(--accent-light);}
 
     /* Popup memoria */
-    .memoria-popup{position:absolute;top:calc(100% + 8px);left:0;right:0;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);box-shadow:0 8px 32px rgba(0,0,0,0.12);z-index:100;max-height:320px;overflow-y:auto;display:none;}
+    .memoria-popup-wrap{position:relative;}
+    .memoria-popup{position:absolute;top:calc(100% + 6px);right:0;width:380px;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);box-shadow:0 12px 40px rgba(0,0,0,0.14);z-index:200;max-height:340px;overflow-y:auto;display:none;animation:slideIn 0.18s ease both;}
     .memoria-popup.visible{display:block;}
-    .memoria-popup-title{padding:10px 14px 6px;font-size:0.68rem;letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted);font-weight:500;border-bottom:1px solid var(--border);}
-    .memoria-item{padding:10px 14px;border-bottom:1px solid var(--surface-alt);cursor:pointer;transition:background var(--transition);}
+    .memoria-popup-title{padding:12px 16px 9px;font-size:0.67rem;letter-spacing:0.09em;text-transform:uppercase;color:var(--text-muted);font-weight:500;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px;}
+    .memoria-popup-title::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0;}
+    .memoria-item{padding:12px 16px;border-bottom:1px solid var(--surface-alt);cursor:pointer;transition:background var(--transition);}
     .memoria-item:last-child{border-bottom:none;}
     .memoria-item:hover{background:var(--accent-light);}
-    .memoria-item-texto{font-size:0.85rem;font-weight:500;color:var(--text);margin-bottom:3px;}
-    .memoria-item-res{font-size:0.78rem;color:var(--text-muted);font-style:italic;line-height:1.4;}
-    .memoria-vacio{padding:16px 14px;font-size:0.82rem;color:var(--text-muted);font-style:italic;text-align:center;}
+    .memoria-item:hover .memoria-item-res{color:var(--accent);}
+    .memoria-item-texto{font-size:0.86rem;font-weight:500;color:var(--text);margin-bottom:4px;line-height:1.3;}
+    .memoria-item-res{font-size:0.79rem;color:var(--text-muted);font-style:italic;line-height:1.45;transition:color var(--transition);}
+    .memoria-vacio{padding:28px 16px;font-size:0.82rem;color:var(--text-muted);text-align:center;line-height:1.5;}
+    .memoria-vacio-icono{font-size:1.6rem;margin-bottom:8px;opacity:0.35;}
 
     /* Filtros */
     .filtros{display:flex;gap:6px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:14px;}
@@ -405,10 +409,10 @@
         <input type="text" class="input-usuario-atendido" id="input-usuario-atendido"
           placeholder="Usuario que lo solicitó (opcional)…" autocomplete="off" maxlength="80" list="lista-usuarios-datalist" />
         <datalist id="lista-usuarios-datalist"></datalist>
-        <button class="btn-memoria" id="btn-memoria" title="Buscar soluciones similares">
-          💡 Memoria
+        <div class="memoria-popup-wrap">
+          <button class="btn-memoria" id="btn-memoria" title="Buscar soluciones similares">💡 Memoria</button>
           <div class="memoria-popup" id="memoria-popup"></div>
-        </button>
+        </div>
       </div>
 
       <div class="filtros">
@@ -912,14 +916,18 @@ function buscarMemoria(texto){
 const btnMemoria=document.getElementById('btn-memoria');
 const memoriaPopup=document.getElementById('memoria-popup');
 
-btnMemoria.addEventListener('click',e=>{
-  e.stopPropagation();
+function abrirMemoria(){
   const texto=document.getElementById('input-nueva').value.trim();
   const resultados=buscarMemoria(texto);
   if(resultados.length===0){
-    memoriaPopup.innerHTML=`<div class="memoria-popup-title">Soluciones similares</div><div class="memoria-vacio">No hay resoluciones similares registradas aún.</div>`;
+    memoriaPopup.innerHTML=`
+      <div class="memoria-popup-title">Soluciones similares</div>
+      <div class="memoria-vacio">
+        <div class="memoria-vacio-icono">💡</div>
+        ${texto?'No encontré resoluciones similares para esta tarea.':'Escribí una tarea para buscar soluciones parecidas.'}
+      </div>`;
   } else {
-    memoriaPopup.innerHTML=`<div class="memoria-popup-title">Soluciones similares</div>`+
+    memoriaPopup.innerHTML=`<div class="memoria-popup-title">Soluciones similares · ${resultados.length} encontradas</div>`+
       resultados.map(t=>`
         <div class="memoria-item" data-texto="${esc(t.texto)}" data-res="${esc(t.resolucion)}">
           <div class="memoria-item-texto">${esc(t.texto)}</div>
@@ -928,19 +936,32 @@ btnMemoria.addEventListener('click',e=>{
     memoriaPopup.querySelectorAll('.memoria-item').forEach(item=>{
       item.addEventListener('click',()=>{
         document.getElementById('input-nueva').value=item.dataset.texto;
-        memoriaPopup.classList.remove('visible');
+        cerrarMemoria();
       });
     });
   }
-  memoriaPopup.classList.toggle('visible');
+}
+
+function cerrarMemoria(){
+  memoriaPopup.classList.remove('visible');
+  btnMemoria.classList.remove('activo');
+}
+
+btnMemoria.addEventListener('click',e=>{
+  e.stopPropagation();
+  const estaAbierto=memoriaPopup.classList.contains('visible');
+  if(estaAbierto){ cerrarMemoria(); return; }
+  abrirMemoria();
+  memoriaPopup.classList.add('visible');
+  btnMemoria.classList.add('activo');
 });
 
 document.addEventListener('click',e=>{
-  if(!btnMemoria.contains(e.target)) memoriaPopup.classList.remove('visible');
+  if(!btnMemoria.closest('.memoria-popup-wrap').contains(e.target)) cerrarMemoria();
 });
 
 document.getElementById('input-nueva').addEventListener('input',()=>{
-  if(memoriaPopup.classList.contains('visible')) btnMemoria.click();
+  if(memoriaPopup.classList.contains('visible')) abrirMemoria();
 });
 
 /* ─── SUGERENCIAS CIERRE ─── */
