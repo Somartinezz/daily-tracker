@@ -1088,31 +1088,69 @@
   let filtroActivo = 'todas';
   let maquinas = [];
 
-  /* ─── localStorage ────────────────────────────────────────────────── */
-  function cargarDesdeStorage() {
-    try { tareas = JSON.parse(localStorage.getItem('daily-tracker-tareas') || '[]'); }
-    catch { tareas = []; }
+  /* URL base de la API — relativa para que funcione en local y en producción */
+  const API = '/api';
+
+  /* ─── API helpers ─────────────────────────────────────────────────── */
+  async function apiGet(ruta) {
+    const r = await fetch(API + ruta);
+    return r.json();
   }
 
-  function guardarEnStorage() {
-    localStorage.setItem('daily-tracker-tareas', JSON.stringify(tareas));
+  async function apiPost(ruta, body) {
+    const r = await fetch(API + ruta, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    return r.json();
   }
 
-  function cargarMaquinas() {
-    try { maquinas = JSON.parse(localStorage.getItem('daily-tracker-maquinas') || '[]'); }
-    catch { maquinas = []; }
+  async function apiPut(ruta, body) {
+    const r = await fetch(API + ruta, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    return r.json();
   }
 
-  function guardarMaquinas() {
-    localStorage.setItem('daily-tracker-maquinas', JSON.stringify(maquinas));
+  async function apiDelete(ruta) {
+    const r = await fetch(API + ruta, { method: 'DELETE' });
+    return r.json();
   }
 
-  function cargarCierre() {
-    return localStorage.getItem('daily-tracker-cierre') || '';
+  /* ─── Carga inicial desde la API ──────────────────────────────────── */
+  async function cargarDesdeStorage() {
+    const rows = await apiGet('/tareas');
+    /* Normalizar campos snake_case → camelCase */
+    tareas = rows.map(t => ({
+      id:         t.id,
+      texto:      t.texto,
+      completada: !!t.completada,
+      resolucion: t.resolucion || '',
+      creadaEn:   t.creada_en,
+    }));
   }
 
+  async function cargarMaquinas() {
+    maquinas = await apiGet('/maquinas');
+  }
+
+  /* Debounce para no llamar la API en cada tecla del cierre */
+  let _cierreTimer = null;
   function guardarCierre(texto) {
-    localStorage.setItem('daily-tracker-cierre', texto);
+    clearTimeout(_cierreTimer);
+    _cierreTimer = setTimeout(async () => {
+      const fecha = new Date().toISOString().slice(0, 10);
+      await apiPut(`/cierre/${fecha}`, { texto });
+    }, 600);
+  }
+
+  async function cargarCierre() {
+    const fecha = new Date().toISOString().slice(0, 10);
+    const data  = await apiGet(`/cierre/${fecha}`);
+    return data.texto || '';
   }
 
   /* ─── ID único ────────────────────────────────────────────────────── */
@@ -1387,7 +1425,7 @@
       const nuevoTexto = inputEdicion.value.trim();
       if (nuevoTexto) {
         tarea.texto = nuevoTexto;
-        guardarEnStorage();
+        apiPut(`/tareas/${tarea.id}`, { texto: tarea.texto, completada: tarea.completada, resolucion: tarea.resolucion });
       }
       finalizarEdicion();
     }
@@ -1416,7 +1454,7 @@
     const tarea = tareas.find(t => t.id === id);
     if (!tarea) return;
     tarea.completada = valor;
-    guardarEnStorage();
+    apiPut(`/tareas/${id}`, { texto: tarea.texto, completada: valor, resolucion: tarea.resolucion });
     el.classList.toggle('completada', valor);
     /* Sincronizar botón toggle y panel según el nuevo estado */
     const resWrap = el.querySelector('.resolucion-wrap');
@@ -1447,9 +1485,17 @@
   }
 
   /* ─── Guardar resolución ──────────────────────────────────────────── */
+  let _resTimer = {};
   function guardarResolucion(id, texto) {
     const tarea = tareas.find(t => t.id === id);
-    if (tarea) { tarea.resolucion = texto; guardarEnStorage(); renderizarSugerencias(); }
+    if (!tarea) return;
+    tarea.resolucion = texto;
+    renderizarSugerencias();
+    /* Debounce para no llamar la API en cada tecla */
+    clearTimeout(_resTimer[id]);
+    _resTimer[id] = setTimeout(() => {
+      apiPut(`/tareas/${id}`, { texto: tarea.texto, completada: tarea.completada, resolucion: texto });
+    }, 600);
   }
 
   /* ─── Eliminar tarea ──────────────────────────────────────────────── */
@@ -1457,7 +1503,7 @@
     el.classList.add('saliendo');
     el.addEventListener('animationend', () => {
       tareas = tareas.filter(t => t.id !== id);
-      guardarEnStorage();
+      apiDelete(`/tareas/${id}`);
       renderizar();
     }, { once: true });
   }
@@ -1468,15 +1514,16 @@
     const texto = input.value.trim();
     if (!texto) return;
 
-    tareas.unshift({
-      id: generarId(),
+    const nueva = {
+      id:         generarId(),
       texto,
       completada: false,
       resolucion: '',
-      creadaEn: new Date().toISOString(),
-    });
+      creadaEn:   new Date().toISOString(),
+    };
 
-    guardarEnStorage();
+    tareas.unshift(nueva);
+    apiPost('/tareas', { id: nueva.id, texto, completada: false, resolucion: '', creada_en: nueva.creadaEn });
     input.value = '';
     input.focus();
     renderizar();
@@ -1593,10 +1640,17 @@
         input.placeholder = PLACEHOLDERS[ci];
         input.maxLength = 80;
 
-        /* Guardar al cambiar */
+        /* Guardar al cambiar con debounce */
+        let _maqTimer = null;
         input.addEventListener('input', () => {
           maquinas[idx][campo] = input.value;
-          guardarMaquinas();
+          clearTimeout(_maqTimer);
+          _maqTimer = setTimeout(() => {
+            apiPut(`/maquinas/${maq.id}`, {
+              host: maquinas[idx].host, serial: maquinas[idx].serial,
+              pertenencia: maquinas[idx].pertenencia, usuario: maquinas[idx].usuario,
+            });
+          }, 600);
         });
 
         /* Tab en última celda agrega fila nueva */
@@ -1620,9 +1674,9 @@
       btnDel.className = 'btn-fila-eliminar';
       btnDel.title = 'Eliminar fila';
       btnDel.textContent = '✕';
-      btnDel.addEventListener('click', () => {
-        maquinas.splice(idx, 1);
-        guardarMaquinas();
+      btnDel.addEventListener('click', async () => {
+        await apiDelete(`/maquinas/${maq.id}`);
+        maquinas = await apiGet('/maquinas');
         renderizarStock();
       });
       tdAcc.appendChild(btnDel);
@@ -1632,9 +1686,9 @@
     });
   }
 
-  function agregarMaquina(focusPrimera = false) {
-    maquinas.push({ host: '', serial: '', pertenencia: '', usuario: '' });
-    guardarMaquinas();
+  async function agregarMaquina(focusPrimera = false) {
+    const { id } = await apiPost('/maquinas', { host: '', serial: '', pertenencia: '', usuario: '' });
+    maquinas.push({ id, host: '', serial: '', pertenencia: '', usuario: '' });
     renderizarStock();
 
     /* Enfocar la primera celda de la fila recién agregada */
@@ -1868,19 +1922,21 @@
     doc.save(`daily-tracker-${new Date().toISOString().slice(0, 10)}.pdf`);
   }
 
-  /* ─── Inicialización ──────────────────────────────────────────────── */
-  mostrarFecha();
-  cargarDesdeStorage();
-  renderizar();
-  cargarMaquinas();
-  renderizarStock();
-
-  /* Cargar cierre del día guardado */
-  const cierreGuardado = cargarCierre();
-  if (cierreGuardado) {
-    cierreTextarea.value = cierreGuardado;
-    actualizarContadorCierre();
+  /* ─── Inicialización async ────────────────────────────────────────── */
+  async function init() {
+    mostrarFecha();
+    await cargarDesdeStorage();
+    renderizar();
+    await cargarMaquinas();
+    renderizarStock();
+    const cierreGuardado = await cargarCierre();
+    if (cierreGuardado) {
+      cierreTextarea.value = cierreGuardado;
+      actualizarContadorCierre();
+    }
   }
+
+  init();
 </script>
 
 </body>
