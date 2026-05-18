@@ -371,6 +371,38 @@
     .td-activo{padding:0 8px !important;}
     .usr-vacio{text-align:center;padding:36px 20px;color:var(--text-muted);font-style:italic;font-size:0.85rem;}
     .import-hint{font-size:0.78rem;color:var(--text-muted);margin-top:8px;font-weight:300;}
+
+    /* Modal importar */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:500;display:flex;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(3px);}
+    .modal-overlay.oculto{display:none;}
+    .modal-box{background:var(--surface);border-radius:var(--radius);box-shadow:0 20px 60px rgba(0,0,0,0.2);width:100%;max-width:560px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;}
+    .modal-header{padding:20px 24px 16px;border-bottom:1px solid var(--border);flex-shrink:0;}
+    .modal-titulo{font-family:'Lora',serif;font-size:1.1rem;font-weight:600;margin-bottom:4px;}
+    .modal-sub{font-size:0.8rem;color:var(--text-muted);font-weight:300;}
+    .modal-body{padding:20px 24px;overflow-y:auto;flex:1;}
+    .modal-footer{padding:14px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0;}
+    .modal-label{font-size:0.72rem;font-weight:500;letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;margin-top:16px;}
+    .modal-label:first-child{margin-top:0;}
+    .hojas-grid{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px;}
+    .hoja-btn{padding:6px 14px;border:1.5px solid var(--border);border-radius:99px;font-family:'DM Sans',sans-serif;font-size:0.82rem;cursor:pointer;background:var(--surface);color:var(--text-muted);transition:all var(--transition);}
+    .hoja-btn:hover{border-color:var(--accent);color:var(--accent);}
+    .hoja-btn.activa{background:var(--accent);color:#fff;border-color:var(--accent);}
+    .col-map-tabla{width:100%;border-collapse:collapse;font-size:0.82rem;}
+    .col-map-tabla th{text-align:left;font-size:0.68rem;letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted);font-weight:500;padding:6px 10px;background:var(--surface-alt);border-bottom:1px solid var(--border);}
+    .col-map-tabla td{padding:7px 10px;border-bottom:1px solid var(--surface-alt);}
+    .col-map-tabla tr:last-child td{border-bottom:none;}
+    .col-ok{color:var(--done);font-weight:500;}
+    .col-no{color:var(--text-muted);font-style:italic;}
+    .preview-tabla-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-sm);}
+    .preview-tabla{width:100%;border-collapse:collapse;font-size:0.78rem;}
+    .preview-tabla th{padding:6px 10px;background:var(--surface-alt);text-align:left;font-weight:500;font-size:0.7rem;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border);white-space:nowrap;}
+    .preview-tabla td{padding:6px 10px;border-bottom:1px solid var(--surface-alt);white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis;}
+    .preview-tabla tr:last-child td{border-bottom:none;}
+    .resumen-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px;}
+    .resumen-chip{padding:4px 12px;border-radius:99px;font-size:0.78rem;font-weight:500;}
+    .resumen-chip.total{background:var(--surface-alt);color:var(--text);}
+    .resumen-chip.ok{background:var(--done-light);color:var(--done);}
+    .resumen-chip.omit{background:var(--accent-light);color:var(--accent);}
     .import-hint strong{color:var(--text);font-weight:500;}
 
     /* ─── RESPONSIVE ─── */
@@ -596,6 +628,33 @@
       </thead>
       <tbody id="usr-tbody"></tbody>
     </table>
+  </div>
+</div>
+
+<!-- ─── MODAL IMPORTAR ─── -->
+<div class="modal-overlay oculto" id="modal-importar">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-titulo">Vista previa de importación</div>
+      <div class="modal-sub" id="modal-import-archivo"></div>
+    </div>
+    <div class="modal-body">
+      <div class="modal-label">Hoja a importar</div>
+      <div class="hojas-grid" id="modal-hojas-grid"></div>
+
+      <div class="modal-label" style="margin-top:18px">Columnas detectadas</div>
+      <table class="col-map-tabla" id="modal-col-map"></table>
+
+      <div class="modal-label" style="margin-top:18px">Resumen</div>
+      <div class="resumen-chips" id="modal-resumen"></div>
+
+      <div class="modal-label" style="margin-top:18px">Primeras 5 filas a importar</div>
+      <div class="preview-tabla-wrap"><table class="preview-tabla" id="modal-preview"></table></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secundario" id="modal-cancelar">Cancelar</button>
+      <button class="btn-primario" id="modal-confirmar">Importar</button>
+    </div>
   </div>
 </div>
 
@@ -1271,69 +1330,166 @@ document.getElementById('btn-importar-excel').addEventListener('click',()=>{
   document.getElementById('input-importar-file').click();
 });
 
-document.getElementById('input-importar-file').addEventListener('change',async function(){
+/* ─── IMPORTAR: estado global ─── */
+let _importWB = null, _importHojaActiva = null, _importFile = null;
+
+const CAMPOS_MAP = {
+  nombre:       ['nombre','name','apellido y nombre','principal usuario','usuario','user','nombre usuario','apellido nombre'],
+  email:        ['email','correo','mail','e-mail','correo electronico','correo electrónico'],
+  departamento: ['departamento','dept','area','área','ceco usuario principal','ceco','centro de costos','cc','sector'],
+  equipo:       ['equipo','host','pc','computadora','maquina','máquina','nombre de equipo','hostname','nombre equipo','equipo asignado'],
+  cargo:        ['cargo','puesto','rol','role','fabricante','modelo','marca','tipo','perfil'],
+};
+const IGNORAR = /^(disponible|sin asignar|libre|n\/a|nd|-+|)$/i;
+
+function normalizarHeaders(rows){
+  return rows.map(r=>Object.fromEntries(
+    Object.entries(r).map(([k,v])=>[k.trim().toLowerCase().replace(/\s+/g,' '),String(v).trim()])
+  ));
+}
+
+function leerHoja(wb, nombre){
+  const ws = wb.Sheets[nombre];
+  /* Intentar con header:1 si sheet_to_json da 0 rows (encabezado en fila 2+) */
+  let rows = XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
+  if(rows.length === 0){
+    const arr = XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:false});
+    /* Buscar la fila que tiene más celdas no vacías como encabezado */
+    let bestRow = 0;
+    let bestCount = 0;
+    arr.slice(0,5).forEach((r,i)=>{const c=r.filter(Boolean).length;if(c>bestCount){bestCount=c;bestRow=i;}});
+    const headers = arr[bestRow].map(h=>String(h).trim());
+    rows = arr.slice(bestRow+1).map(r=>{
+      const obj={};
+      headers.forEach((h,i)=>{obj[h]=String(r[i]||'').trim();});
+      return obj;
+    }).filter(r=>Object.values(r).some(Boolean));
+  }
+  return normalizarHeaders(rows);
+}
+
+function mapearFila(row){
+  const obj={activo:true};
+  for(const [campo,aliases] of Object.entries(CAMPOS_MAP)){
+    const found=aliases.find(a=>row[a]!==undefined&&row[a]!=='');
+    obj[campo]=found?String(row[found]).trim():'';
+  }
+  if(!obj.cargo){
+    const fab=row['fabricante']||'', mod=row['modelo']||'';
+    obj.cargo=[fab,mod].filter(Boolean).join(' ');
+  }
+  return obj;
+}
+
+function actualizarModalImport(){
+  if(!_importWB||!_importHojaActiva) return;
+  const rows = leerHoja(_importWB, _importHojaActiva);
+  const mapeadas = rows.map(mapearFila);
+  const validas = mapeadas.filter(o=>o.nombre&&!IGNORAR.test(o.nombre));
+  const omitidas = mapeadas.length - validas.length;
+
+  /* Resumen */
+  document.getElementById('modal-resumen').innerHTML=`
+    <span class="resumen-chip total">${rows.length} filas totales</span>
+    <span class="resumen-chip ok">✓ ${validas.length} a importar</span>
+    ${omitidas>0?`<span class="resumen-chip omit">⏭ ${omitidas} omitidas (sin nombre)</span>`:''}`;
+
+  /* Mapa de columnas */
+  const colEncontrada={};
+  if(rows.length>0){
+    const sample=normalizarHeaders([rows[0]])[0];
+    for(const [campo,aliases] of Object.entries(CAMPOS_MAP)){
+      colEncontrada[campo]=aliases.find(a=>sample[a]!==undefined);
+    }
+  }
+  document.getElementById('modal-col-map').innerHTML=`
+    <thead><tr><th>Campo app</th><th>Columna en Excel</th></tr></thead>
+    <tbody>${Object.entries(CAMPOS_MAP).map(([campo])=>`
+      <tr>
+        <td>${{nombre:'Nombre',email:'Email',departamento:'Departamento',equipo:'Equipo',cargo:'Cargo'}[campo]}</td>
+        <td>${colEncontrada[campo]?`<span class="col-ok">✓ "${colEncontrada[campo]}"</span>`:'<span class="col-no">No detectada</span>'}</td>
+      </tr>`).join('')}
+    </tbody>`;
+
+  /* Preview primeras 5 */
+  const preview = validas.slice(0,5);
+  const campos = ['nombre','email','departamento','equipo','cargo'];
+  const labels = ['Nombre','Email','Departamento','Equipo','Cargo'];
+  document.getElementById('modal-preview').innerHTML= preview.length===0
+    ? '<tr><td colspan="5" style="padding:12px;text-align:center;color:var(--text-muted);font-style:italic">Sin filas válidas para mostrar</td></tr>'
+    : `<thead><tr>${labels.map(l=>`<th>${l}</th>`).join('')}</tr></thead>
+       <tbody>${preview.map(r=>`<tr>${campos.map(c=>`<td title="${esc(r[c]||'')}">${esc((r[c]||'—').substring(0,22))}</td>`).join('')}</tr>`).join('')}</tbody>`;
+}
+
+document.getElementById('input-importar-file').addEventListener('change', async function(){
   const file=this.files[0]; if(!file) return;
+  _importFile=file;
   const ext=file.name.split('.').pop().toLowerCase();
-  let rows=[];
+
+  document.getElementById('modal-import-archivo').textContent=file.name;
+  document.getElementById('modal-importar').classList.remove('oculto');
 
   if(ext==='csv'){
+    /* CSV: tratarlo como libro de una sola hoja */
     const text=await file.text();
     const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
     const headers=lines[0].split(/[,;]/).map(h=>h.trim().toLowerCase().replace(/["""]/g,''));
-    rows=lines.slice(1).map(line=>{
+    const rows=lines.slice(1).map(line=>{
       const vals=line.split(/[,;]/).map(v=>v.trim().replace(/^[""]|[""]$/g,''));
-      const obj={};
-      headers.forEach((h,i)=>{obj[h]=vals[i]||'';});
-      return obj;
+      const obj={}; headers.forEach((h,i)=>{obj[h]=vals[i]||'';}); return obj;
     });
+    _importWB={SheetNames:['CSV'],Sheets:{CSV:{}}};
+    _importWB._csvRows={CSV:rows};
+    _importHojaActiva='CSV';
+    document.getElementById('modal-hojas-grid').innerHTML=`<button class="hoja-btn activa">CSV</button>`;
   } else {
     const buf=await file.arrayBuffer();
-    const wb=XLSX.read(buf,{type:'array'});
+    _importWB=XLSX.read(buf,{type:'array'});
+    _importHojaActiva=_importWB.SheetNames.find(n=>n.toLowerCase().includes('notebook'))||_importWB.SheetNames[0];
 
-    /* Preferir hoja "Notebooks" si existe, sino la primera */
-    const hojaNombre = wb.SheetNames.find(n=>n.toLowerCase().includes('notebook')) || wb.SheetNames[0];
-    const ws=wb.Sheets[hojaNombre];
+    document.getElementById('modal-hojas-grid').innerHTML=_importWB.SheetNames.map(n=>
+      `<button class="hoja-btn${n===_importHojaActiva?' activa':''}" data-hoja="${esc(n)}">${esc(n)}</button>`
+    ).join('');
 
-    /* Algunos .xlsm tienen encabezado en fila 0, otros en fila 1 o 2.
-       Intentamos leerlo con raw:false para que convierta tipos. */
-    rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
-    rows=rows.map(r=>Object.fromEntries(
-      Object.entries(r).map(([k,v])=>[k.trim().toLowerCase().replace(/\s+/g,' '),String(v).trim()])
-    ));
+    document.getElementById('modal-hojas-grid').addEventListener('click',e=>{
+      const btn=e.target.closest('.hoja-btn'); if(!btn) return;
+      document.querySelectorAll('.hoja-btn').forEach(b=>b.classList.remove('activa'));
+      btn.classList.add('activa');
+      _importHojaActiva=btn.dataset.hoja;
+      actualizarModalImport();
+    });
   }
+  actualizarModalImport();
+  this.value='';
+});
 
-  /* Mapa de aliases — incluye columnas del inventario Argentina */
-  const camposMap={
-    nombre:   ['nombre','name','apellido y nombre','principal usuario','usuario','user','nombre usuario'],
-    email:    ['email','correo','mail','e-mail'],
-    departamento: ['departamento','dept','area','área','ceco usuario principal','ceco','centro de costos','cc'],
-    equipo:   ['equipo','host','pc','computadora','maquina','máquina','nombre de equipo','hostname','nombre equipo'],
-    cargo:    ['cargo','puesto','rol','role','fabricante','modelo','marca','tipo'],
-  };
+document.getElementById('modal-cancelar').addEventListener('click',()=>{
+  document.getElementById('modal-importar').classList.add('oculto');
+  _importWB=null; _importHojaActiva=null; _importFile=null;
+});
 
-  /* Filtrar filas sin usuario (ej. "Disponible REP") */
-  const IGNORAR=/disponible|sin asignar|libre|n\/a|^-+$/i;
+document.getElementById('modal-confirmar').addEventListener('click', async()=>{
+  if(!_importWB||!_importHojaActiva) return;
+  const btn=document.getElementById('modal-confirmar');
+  btn.disabled=true; btn.textContent='Importando…';
 
+  let rows;
+  if(_importWB._csvRows) rows=_importWB._csvRows[_importHojaActiva];
+  else rows=leerHoja(_importWB,_importHojaActiva);
+
+  const mapeadas=rows.map(mapearFila);
   let importados=0, omitidos=0;
-  for(const row of rows){
-    const obj={activo:true};
-    for(const [campo,aliases] of Object.entries(camposMap)){
-      const found=aliases.find(a=>row[a]!==undefined&&row[a]!=='');
-      obj[campo]=found?String(row[found]).trim():'';
-    }
-    /* Combinar fabricante + modelo en cargo si cargo queda vacío */
-    if(!obj.cargo){
-      const fab=row['fabricante']||'', mod=row['modelo']||'';
-      obj.cargo=[fab,mod].filter(Boolean).join(' ');
-    }
+  for(const obj of mapeadas){
     if(!obj.nombre||IGNORAR.test(obj.nombre)){omitidos++;continue;}
     const {id}=await apiPost('/usuarios',obj);
     usuarios.push({id,...obj});
     importados++;
   }
   actualizarDatalist(); renderizarUsuarios();
-  alert(`✅ ${importados} usuario${importados!==1?'s':''} importado${importados!==1?'s':''} correctamente.${omitidos>0?`\n⏭ ${omitidos} filas omitidas (sin usuario asignado).`:''}`);
-  this.value='';
+  document.getElementById('modal-importar').classList.add('oculto');
+  btn.disabled=false; btn.textContent='Importar';
+  _importWB=null; _importHojaActiva=null; _importFile=null;
+  alert(`✅ ${importados} usuario${importados!==1?'s':''} importado${importados!==1?'s':''}.${omitidos>0?`\n⏭ ${omitidos} filas sin nombre, omitidas.`:''}`);
 });
 
 /* ─── EVENTOS ─── */
