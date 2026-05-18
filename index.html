@@ -1001,7 +1001,12 @@ function agregarTarea(textoParam){
 }
 
 /* ─── MEMORIA ─── */
-const STOPWORDS=new Set(['el','la','los','las','un','una','de','del','en','que','y','a','no','se','con','por','para','al','es','lo','le','me','te','su','mi','fue','mas','ya','si','hay','o','pero']);
+const STOPWORDS=new Set([
+  'el','la','los','las','un','una','de','del','en','que','y','a','no','se','con','por','para','al','es','lo','le','me','te','su','mi','fue','mas','ya','si','hay','o','pero',
+  'como','esta','este','esto','está','tiene','hacer','hacer','puede','desde','hasta','cuando','donde','porque','sobre','entre','después','antes','nuevo','nueva','nuevos',
+  'issue','error','problema','tarea','hacer','quiere','usuario','usuaria','pedir','pedido','solicitud','solicita','solicito','reporta','reporto','avisa','aviso',
+  'favor','gracias','hola','buenas','buen','buena','algo','todo','toda','todos','todas','mismo','misma','otro','otra','algún','alguna','varios','varias'
+]);
 
 function palabrasClave(texto){
   return texto.toLowerCase().replace(/[^a-záéíóúüñ\s]/gi,'').split(/\s+/)
@@ -1172,32 +1177,28 @@ function renderDashboard(){
   const usrsDistintos=new Set(tareas.map(t=>t.usuario_atendido).filter(Boolean));
   document.getElementById('d-usuarios').textContent=usrsDistintos.size;
 
-  /* Top errores: agrupar tareas con texto similar por palabras clave compartidas */
-  const grupos={};
+  /* Top errores: frecuencia de palabras clave en textos de tareas */
+  const freq={};
   tareas.forEach(t=>{
-    const palabras=palabrasClave(t.texto);
-    if(palabras.length===0) return;
-    /* Clave del grupo = primera palabra clave significativa (≥5 letras) o la primera */
-    const clave=palabras.find(p=>p.length>=5)||palabras[0];
-    if(!grupos[clave]) grupos[clave]={clave, count:0, ejemplos:[]};
-    grupos[clave].count++;
-    if(grupos[clave].ejemplos.length<2) grupos[clave].ejemplos.push(t.texto);
+    /* Extraer palabras de mínimo 5 letras para evitar nombres cortos */
+    const palabras=t.texto.toLowerCase()
+      .replace(/[^a-záéíóúüñ\s]/gi,'').split(/\s+/)
+      .filter(w=>w.length>=5&&!STOPWORDS.has(w)&&!/^\d+$/.test(w));
+    /* Contar cada palabra una sola vez por tarea (no inflar con repeticiones internas) */
+    [...new Set(palabras)].forEach(w=>{freq[w]=(freq[w]||0)+1;});
   });
-  const topGrupos=Object.values(grupos).filter(g=>g.count>1).sort((a,b)=>b.count-a.count).slice(0,6);
-  const maxW=topGrupos[0]?topGrupos[0].count:1;
+  const topWords=Object.entries(freq).filter(([,c])=>c>1).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const maxW=topWords[0]?topWords[0][1]:1;
   const errDiv=document.getElementById('d-errores');
-  if(topGrupos.length===0){errDiv.innerHTML=`<div class="dash-vacio">Agregá más tareas para ver patrones repetidos.</div>`;}
+  if(topWords.length===0){errDiv.innerHTML=`<div class="dash-vacio">Agregá más tareas para ver patrones repetidos.</div>`;}
   else{
-    errDiv.innerHTML=topGrupos.map(g=>`
+    errDiv.innerHTML=topWords.map(([w,c])=>`
       <div class="dash-bar-item">
         <div class="dash-bar-label">
-          <span title="${esc(g.ejemplos.join(' / '))}">${esc(g.clave.charAt(0).toUpperCase()+g.clave.slice(1))}</span>
-          <span>${g.count===1?'1 vez':`${g.count} veces`}</span>
+          <span>${esc(w.charAt(0).toUpperCase()+w.slice(1))}</span>
+          <span>${c===1?'1 vez':`${c} veces`}</span>
         </div>
-        <div class="dash-bar-label" style="font-size:0.72rem;color:var(--text-muted);margin-top:-2px;margin-bottom:3px;">
-          <span style="font-style:italic">${esc(g.ejemplos[0].length>50?g.ejemplos[0].slice(0,50)+'…':g.ejemplos[0])}</span>
-        </div>
-        <div class="dash-bar-track"><div class="dash-bar-fill accent" style="width:${Math.round((g.count/maxW)*100)}%"></div></div>
+        <div class="dash-bar-track"><div class="dash-bar-fill accent" style="width:${Math.round((c/maxW)*100)}%"></div></div>
       </div>`).join('');
   }
 
