@@ -48,6 +48,8 @@
     .h-prior-label{font-size:0.62rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent);margin-bottom:3px;}
     .h-prior-texto{font-size:0.82rem;color:var(--header-text);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .h-prior-hora{font-size:0.68rem;color:#8a8070;margin-top:2px;}
+    .btn-logout{width:32px;height:32px;border:1px solid #3a3830;border-radius:var(--radius-sm);background:transparent;color:#6a6460;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all var(--transition);flex-shrink:0;}
+    .btn-logout:hover{background:#2a2824;color:#e07060;border-color:#e07060;}
 
     /* ─── VISTAS ─── */
     .vista{display:none;}
@@ -381,6 +383,8 @@
     <div class="h-racha-label">Racha</div>
     <div class="h-racha-mejor" id="h-racha-mejor">Mejor: 0 días</div>
   </div>
+  <button class="btn-logout" id="btn-logout" title="Cerrar sesión">⏻</button>
+
   <div class="h-prioritaria" id="h-prioritaria" style="display:none">
     <div class="h-prior-label">⚡ Prioridad alta</div>
     <div class="h-prior-texto" id="h-prior-texto"></div>
@@ -1366,6 +1370,11 @@ async function init(){
   actualizarTimeline();
   setInterval(()=>{actualizarHeader();actualizarTimeline();},60000);
 }
+
+document.getElementById('btn-logout').addEventListener('click', async () => {
+  await fetch('/api/logout', { method: 'POST' });
+  window.location.href = '/login';
+});
 
 init();
 </script>
