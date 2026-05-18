@@ -35,8 +35,8 @@ app.get('/login', (req, res) => {
 
 app.post('/api/login', (req, res) => {
   const { usuario, password } = req.body;
-  const USER = process.env.LOGIN_USER || 'sofi';
-  const PASS = process.env.LOGIN_PASS || 'Cepas2025';
+  const USER = process.env.LOGIN_USER || 'somartinez';
+  const PASS = process.env.LOGIN_PASS || 'Cepas2026';
 
   if (usuario === USER && password === PASS) {
     req.session.autenticado = true;
