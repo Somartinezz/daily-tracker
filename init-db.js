@@ -58,6 +58,17 @@ async function init() {
 
   await db.query(`ALTER TABLE tareas ADD COLUMN IF NOT EXISTS usuario_atendido VARCHAR(80) DEFAULT ''`);
 
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS historial_maquinas (
+      id             SERIAL PRIMARY KEY,
+      maquina_id     INT NOT NULL,
+      campo          VARCHAR(50) NOT NULL,
+      valor_anterior TEXT DEFAULT '',
+      valor_nuevo    TEXT DEFAULT '',
+      fecha          TIMESTAMP DEFAULT NOW()
+    )
+  `);
+
   console.log('Tablas OK');
   await db.end();
 }
