@@ -70,6 +70,10 @@
     .nueva-tarea input::placeholder{color:var(--text-muted);font-weight:300;}
     .select-prioridad{padding:11px 10px;border:1.5px solid var(--border);border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text);outline:none;cursor:pointer;}
     .select-prioridad:focus{border-color:var(--accent);}
+    .select-categoria{padding:11px 10px;border:1.5px solid var(--border);border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text);outline:none;cursor:pointer;min-width:160px;}
+    .select-categoria:focus{border-color:var(--accent);}
+    .badge-categoria{display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;font-size:0.68rem;font-weight:500;flex-shrink:0;letter-spacing:0.02em;background:var(--surface-alt);color:var(--text-muted);}
+    .dash-cat-icon{font-size:1.1rem;margin-right:6px;}
     .btn-agregar{padding:11px 20px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:0.88rem;font-weight:500;cursor:pointer;transition:background var(--transition),transform var(--transition);white-space:nowrap;}
     .btn-agregar:hover{background:#b36830;transform:translateY(-1px);}
 
@@ -464,6 +468,15 @@
 
       <div class="nueva-tarea">
         <input type="text" id="input-nueva" placeholder="Descripción de la tarea… (Enter)" autocomplete="off" maxlength="200" />
+        <select class="select-categoria" id="select-categoria">
+          <option value="">Tipo de problema…</option>
+          <option value="Correo / Outlook">📧 Correo / Outlook</option>
+          <option value="Equipos / Hardware">💻 Equipos / Hardware</option>
+          <option value="Accesos / Permisos">🔑 Accesos / Permisos</option>
+          <option value="Software / Sistema">🖥️ Software / Sistema</option>
+          <option value="Red / Conectividad">🌐 Red / Conectividad</option>
+          <option value="Otros">📋 Otros</option>
+        </select>
         <select class="select-prioridad" id="select-prioridad">
           <option value="alta">Alta</option>
           <option value="media" selected>Media</option>
@@ -735,7 +748,8 @@ async function cargarTareas(){
   tareas = rows.map(t=>({
     id:t.id, texto:t.texto, completada:!!t.completada,
     resolucion:t.resolucion||'', prioridad:t.prioridad||'media',
-    creadaEn:t.creada_en, usuario_atendido:t.usuario_atendido||''
+    creadaEn:t.creada_en, usuario_atendido:t.usuario_atendido||'',
+    categoria:t.categoria||''
   }));
 }
 async function cargarMaquinas(){ maquinas = await apiGet('/maquinas'); }
@@ -899,6 +913,7 @@ function crearElementoTarea(tarea){
   const prior=tarea.prioridad||'media';
   const priorLabel={alta:'Alta',media:'Media',baja:'Baja'}[prior];
   const usuBadge=tarea.usuario_atendido?`<span class="tarea-usuario-badge">👤 ${esc(tarea.usuario_atendido)}</span>`:'';
+  const catBadge=tarea.categoria?`<span class="badge-categoria">${esc(tarea.categoria)}</span>`:'';
   el.innerHTML=`
     <div class="tarea-header">
       <div class="checkbox-wrap"><input type="checkbox" id="check-${tarea.id}" ${tarea.completada?'checked':''} /></div>
@@ -906,6 +921,7 @@ function crearElementoTarea(tarea){
         <div class="tarea-top">
           <span class="tarea-texto">${esc(tarea.texto)}</span>
           <span class="badge-prioridad ${prior}">${priorLabel}</span>
+          ${catBadge}
           ${usuBadge}
         </div>
         ${fechaStr?`<div class="tarea-fecha">${fechaStr}</div>`:''}
@@ -929,7 +945,7 @@ function crearElementoTarea(tarea){
     tarea.resolucion=e.target.value; renderizarSugerencias();
     clearTimeout(_resTimer[tarea.id]);
     _resTimer[tarea.id]=setTimeout(()=>{
-      apiPut(`/tareas/${tarea.id}`,{texto:tarea.texto,completada:tarea.completada,resolucion:e.target.value,prioridad:tarea.prioridad,usuario_atendido:tarea.usuario_atendido});
+      apiPut(`/tareas/${tarea.id}`,{texto:tarea.texto,completada:tarea.completada,resolucion:e.target.value,prioridad:tarea.prioridad,usuario_atendido:tarea.usuario_atendido,categoria:tarea.categoria||''});
       const btnRes=el.querySelector('.btn-ver-resolucion');
       if(btnRes){let prev=btnRes.querySelector('.preview');const val=e.target.value.trim();if(val&&!prev){prev=document.createElement('span');prev.className='preview';btnRes.appendChild(prev);}if(prev)prev.textContent=val?`— ${val}`:'';}
     },600);
@@ -963,7 +979,7 @@ function iniciarEdicion(id,el){
   accionesEl.innerHTML=`<button class="btn-icono guardar" data-accion="guardar">✓</button><button class="btn-icono cancelar" data-accion="cancelar">✕</button>`;
   function confirmar(){
     const t=inputEdicion.value.trim();
-    if(t){tarea.texto=t;apiPut(`/tareas/${tarea.id}`,{texto:t,completada:tarea.completada,resolucion:tarea.resolucion,prioridad:tarea.prioridad,usuario_atendido:tarea.usuario_atendido});}
+    if(t){tarea.texto=t;apiPut(`/tareas/${tarea.id}`,{texto:t,completada:tarea.completada,resolucion:tarea.resolucion,prioridad:tarea.prioridad,usuario_atendido:tarea.usuario_atendido,categoria:tarea.categoria||''});}
     el.classList.remove('editando'); renderizar();
   }
   function cancelar(){tarea.texto=textoOriginal;el.classList.remove('editando');renderizar();}
@@ -977,7 +993,7 @@ function toggleCompletada(id,valor,el){
   const tarea=tareas.find(t=>t.id===id);
   if(!tarea) return;
   tarea.completada=valor;
-  apiPut(`/tareas/${id}`,{texto:tarea.texto,completada:valor,resolucion:tarea.resolucion,prioridad:tarea.prioridad,usuario_atendido:tarea.usuario_atendido});
+  apiPut(`/tareas/${id}`,{texto:tarea.texto,completada:valor,resolucion:tarea.resolucion,prioridad:tarea.prioridad,usuario_atendido:tarea.usuario_atendido,categoria:tarea.categoria||''});
   el.classList.toggle('completada',valor);
   actualizarProgreso(); renderizarSugerencias(); actualizarTimeline();
 }
@@ -995,18 +1011,61 @@ function agregarTarea(textoParam){
   if(!texto) return;
   const prioridad=document.getElementById('select-prioridad').value;
   const usuario_atendido=document.getElementById('input-usuario-atendido').value.trim();
-  const nueva={id:generarId(),texto,completada:false,resolucion:'',prioridad,creadaEn:new Date().toISOString(),usuario_atendido};
+  const categoria=document.getElementById('select-categoria').value;
+  const nueva={id:generarId(),texto,completada:false,resolucion:'',prioridad,creadaEn:new Date().toISOString(),usuario_atendido,categoria};
   tareas.unshift(nueva);
-  apiPost('/tareas',{id:nueva.id,texto,completada:false,resolucion:'',prioridad,creada_en:nueva.creadaEn,usuario_atendido});
-  input.value=''; input.focus(); renderizar();
+  apiPost('/tareas',{id:nueva.id,texto,completada:false,resolucion:'',prioridad,creada_en:nueva.creadaEn,usuario_atendido,categoria});
+  input.value=''; document.getElementById('select-categoria').value=''; input.focus(); renderizar();
 }
 
 /* ─── MEMORIA ─── */
 const STOPWORDS=new Set([
+  /* artículos / preposiciones / pronombres */
   'el','la','los','las','un','una','de','del','en','que','y','a','no','se','con','por','para','al','es','lo','le','me','te','su','mi','fue','mas','ya','si','hay','o','pero',
-  'como','esta','este','esto','está','tiene','hacer','hacer','puede','desde','hasta','cuando','donde','porque','sobre','entre','después','antes','nuevo','nueva','nuevos',
-  'issue','error','problema','tarea','hacer','quiere','usuario','usuaria','pedir','pedido','solicitud','solicita','solicito','reporta','reporto','avisa','aviso',
-  'favor','gracias','hola','buenas','buen','buena','algo','todo','toda','todos','todas','mismo','misma','otro','otra','algún','alguna','varios','varias'
+  'como','esta','este','esto','esa','ese','eso','está','desde','hasta','cuando','donde','porque','sobre','entre','después','antes','nuevo','nueva','nuevos','nuevas',
+  'sin','más','menos','muy','bien','mal','solo','sola','solos','solas','unos','unas',
+  /* verbos genéricos — infinitivos */
+  'hacer','poder','tener','querer','saber','deber','poner','venir','decir','dar','ver','ir','estar','ser','haber',
+  'conectar','gestionar','cambiar','instalar','abrir','cerrar','revisar','reiniciar','actualizar','arreglar',
+  'solucionar','configurar','funcionar','aparecer','mostrar','entrar','salir','llevar','pasar','quedar','volver',
+  'empezar','seguir','intentar','acceder','ingresar','cargar','guardar','enviar','recibir','agregar','eliminar',
+  'borrar','crear','mover','copiar','pegar','buscar','encontrar','probar','verificar','checar','chequear',
+  'formatear','restablecer','recuperar','activar','desactivar','habilitar','deshabilitar','sincronizar',
+  /* verbos conjugados comunes */
+  'tiene','tienen','tengo','tuvo','tenia','tenía','tenga',
+  'puede','pueden','puedo','pudo','podia','podía','pueda',
+  'quiere','quieren','quiero','quiso','queria','quería',
+  'figura','figuras','figura','figurar',
+  'necesita','necesitan','necesito','necesitaba',
+  'pide','piden','pido','pidio','pidió','pidiendo',
+  'hace','hacen','hago','hizo','hacia','hacía',
+  'dice','dicen','digo','dijo','decia','decía',
+  'viene','vienen','vengo','vino','venia','venía',
+  'sale','salen','salgo','salio','salió',
+  'entra','entran','entro','entró',
+  'muestra','muestran','muestro','mostró',
+  'carga','cargan','cargo','cargó',
+  'abre','abren','abro','abrió',
+  'cierra','cierran','cerró',
+  'falla','fallan','falló','fallando',
+  'tira','tiran','tiró',
+  'deja','dejan','dejó',
+  'lleva','llevan','llevó',
+  /* sustantivos genéricos de IT / soporte */
+  'issue','error','problema','problemas','tarea','tareas','ticket','tickets',
+  'usuario','usuaria','usuarios','usuarias','pedir','pedido','solicitud','solicita','solicito',
+  'reporta','reporto','reportó','avisa','aviso',
+  'equipo','equipos',  /* muy genérico — lo filtramos para el dashboard */
+  /* fórmulas de cortesía */
+  'favor','gracias','hola','buenas','buen','buena','buenos',
+  /* indefinidos / cuantificadores */
+  'algo','todo','toda','todos','todas','mismo','misma','otro','otra','algún','alguna','algunos','algunas','varios','varias',
+  'cada','mucho','mucha','muchos','muchas','poco','poca','pocos','pocas','nada','nadie','alguien',
+  /* adjetivos comunes */
+  'nuevo','nueva','nuevos','nuevas','viejo','vieja','viejos','viejas','mismo','misma',
+  /* días / tiempo */
+  'lunes','martes','miércoles','miercoles','jueves','viernes','sábado','sabado','domingo',
+  'hoy','ayer','mañana','semana','mes','año'
 ]);
 
 function palabrasClave(texto){
@@ -1178,28 +1237,22 @@ function renderDashboard(){
   const usrsDistintos=new Set(tareas.map(t=>t.usuario_atendido).filter(Boolean));
   document.getElementById('d-usuarios').textContent=usrsDistintos.size;
 
-  /* Top errores: frecuencia de palabras clave en textos de tareas */
-  const freq={};
-  tareas.forEach(t=>{
-    /* Extraer palabras de mínimo 5 letras para evitar nombres cortos */
-    const palabras=t.texto.toLowerCase()
-      .replace(/[^a-záéíóúüñ\s]/gi,'').split(/\s+/)
-      .filter(w=>w.length>=5&&!STOPWORDS.has(w)&&!/^\d+$/.test(w));
-    /* Contar cada palabra una sola vez por tarea (no inflar con repeticiones internas) */
-    [...new Set(palabras)].forEach(w=>{freq[w]=(freq[w]||0)+1;});
-  });
-  const topWords=Object.entries(freq).filter(([,c])=>c>1).sort((a,b)=>b[1]-a[1]).slice(0,6);
-  const maxW=topWords[0]?topWords[0][1]:1;
+  /* Problemas más repetidos: conteo por categoría */
+  const CAT_ICONS={'Correo / Outlook':'📧','Equipos / Hardware':'💻','Accesos / Permisos':'🔑','Software / Sistema':'🖥️','Red / Conectividad':'🌐','Otros':'📋'};
+  const catFreq={};
+  tareas.forEach(t=>{if(t.categoria)catFreq[t.categoria]=(catFreq[t.categoria]||0)+1;});
+  const topCats=Object.entries(catFreq).sort((a,b)=>b[1]-a[1]);
+  const maxC=topCats[0]?topCats[0][1]:1;
   const errDiv=document.getElementById('d-errores');
-  if(topWords.length===0){errDiv.innerHTML=`<div class="dash-vacio">Agregá más tareas para ver patrones repetidos.</div>`;}
+  if(topCats.length===0){errDiv.innerHTML=`<div class="dash-vacio">Seleccioná el tipo de problema al agregar tareas para ver el resumen aquí.</div>`;}
   else{
-    errDiv.innerHTML=topWords.map(([w,c])=>`
+    errDiv.innerHTML=topCats.map(([cat,c])=>`
       <div class="dash-bar-item">
         <div class="dash-bar-label">
-          <span>${esc(w.charAt(0).toUpperCase()+w.slice(1))}</span>
+          <span><span class="dash-cat-icon">${CAT_ICONS[cat]||'📋'}</span>${esc(cat)}</span>
           <span>${c===1?'1 vez':`${c} veces`}</span>
         </div>
-        <div class="dash-bar-track"><div class="dash-bar-fill accent" style="width:${Math.round((c/maxW)*100)}%"></div></div>
+        <div class="dash-bar-track"><div class="dash-bar-fill accent" style="width:${Math.round((c/maxC)*100)}%"></div></div>
       </div>`).join('');
   }
 
