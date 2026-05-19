@@ -74,6 +74,15 @@
     .select-categoria:focus{border-color:var(--accent);}
     .badge-categoria{display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;font-size:0.68rem;font-weight:500;flex-shrink:0;letter-spacing:0.02em;background:var(--surface-alt);color:var(--text-muted);}
     .dash-cat-icon{font-size:1.1rem;margin-right:6px;}
+    .revisor-fila{display:grid;grid-template-columns:1fr 160px 180px;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);}
+    .revisor-fila:last-child{border-bottom:none;}
+    .revisor-texto{font-size:0.83rem;color:var(--text);line-height:1.35;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+    .revisor-input{width:100%;padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;font-size:0.8rem;color:var(--text);background:var(--surface);outline:none;}
+    .revisor-input:focus{border-color:var(--accent);}
+    .revisor-select{width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;font-size:0.78rem;color:var(--text);background:var(--surface);outline:none;cursor:pointer;}
+    .revisor-select:focus{border-color:var(--accent);}
+    .revisor-header{display:grid;grid-template-columns:1fr 160px 180px;gap:10px;padding:8px 0 6px;border-bottom:2px solid var(--border);margin-bottom:2px;}
+    .revisor-header span{font-size:0.7rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);}
     .btn-agregar{padding:11px 20px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:0.88rem;font-weight:500;cursor:pointer;transition:background var(--transition),transform var(--transition);white-space:nowrap;}
     .btn-agregar:hover{background:#b36830;transform:translateY(-1px);}
 
@@ -591,6 +600,32 @@
     <div class="dash-panel">
       <div class="dash-panel-title">Tareas por día de la semana</div>
       <div class="dash-bar-list" id="d-semana"></div>
+    </div>
+  </div>
+
+  <!-- Botón para abrir el revisor -->
+  <div style="margin-top:24px;text-align:center;">
+    <button onclick="abrirRevisor()" style="padding:10px 22px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:0.88rem;font-weight:500;cursor:pointer;">🔍 Revisar y completar historial de tareas</button>
+  </div>
+</div>
+
+<!-- ─── MODAL REVISOR DE TAREAS ─── -->
+<div id="modal-revisor" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9000;overflow-y:auto;padding:32px 16px;">
+  <div style="background:#fff;border-radius:14px;max-width:780px;margin:0 auto;padding:0;box-shadow:0 20px 60px rgba(0,0,0,0.25);">
+    <div style="padding:24px 28px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-family:'Lora',serif;font-size:1.2rem;font-weight:600;color:var(--text);">Revisar historial de tareas</div>
+        <div style="font-size:0.8rem;color:var(--text-muted);margin-top:3px;">Verificá usuario y tipo para cada tarea. Solo se muestran las que les falta alguno de los dos.</div>
+      </div>
+      <button onclick="cerrarRevisor()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--text-muted);padding:4px 8px;">✕</button>
+    </div>
+    <div id="revisor-lista" style="padding:16px 28px 8px;max-height:65vh;overflow-y:auto;"></div>
+    <div style="padding:16px 28px 24px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:12px;">
+      <span id="revisor-estado" style="font-size:0.82rem;color:var(--text-muted);"></span>
+      <div style="display:flex;gap:10px;">
+        <button onclick="cerrarRevisor()" style="padding:9px 18px;background:var(--surface-alt);border:1px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:0.88rem;cursor:pointer;">Cerrar</button>
+        <button id="btn-guardar-revisor" onclick="guardarRevision()" style="padding:9px 22px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:0.88rem;font-weight:500;cursor:pointer;">Guardar todo</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1233,6 +1268,100 @@ async function agregarMaquina(){
 }
 
 /* ─── DASHBOARD ─── */
+/* ─── REVISOR DE TAREAS ─── */
+const CATS=['Correo / Outlook','Equipos / Hardware','Accesos / Permisos','Software / Sistema','Red / Conectividad','Otros'];
+const CAT_ICONS_MAP={'Correo / Outlook':'📧','Equipos / Hardware':'💻','Accesos / Permisos':'🔑','Software / Sistema':'🖥️','Red / Conectividad':'🌐','Otros':'📋'};
+
+function detectarNombre(texto){
+  const m=texto.match(/^([A-ZÁÉÍÓÚÜÑ][^\s–—\-:]{1,}(?:\s+[A-ZÁÉÍÓÚÜÑ][^\s–—\-:]{1,})?)[\s]*[–—\-:][\s]/u);
+  if(!m) return '';
+  const n=m[1].trim();
+  const IGNORAR=new Set(['instalar','cambiar','revisar','actualizar','configurar','conectar','error','problema','soporte','ayuda','tarea','usuario','equipo']);
+  if(n.length<3||IGNORAR.has(n.toLowerCase())) return '';
+  return n;
+}
+
+function sugerirCategoria(texto){
+  const REGLAS=[
+    {cat:'Correo / Outlook',kw:['outlook','correo','mail','email','bandeja','firma','exchange','adjunto','mensaje','inbox','distribution']},
+    {cat:'Equipos / Hardware',kw:['notebook','laptop','computadora','pc','equipo','celular','teléfono','telefono','auricular','headset','teclado','mouse','monitor','pantalla','impresora','escaner','scanner','disco','ram','batería','bateria','cargador','cable','usb','hdmi','docking','webcam','cambio de equipo','formatear','hardware']},
+    {cat:'Accesos / Permisos',kw:['contraseña','password','clave','acceso','permiso','cuenta','token','mfa','autenticación','2fa','bloqueo','bloqueado','bloqueada','desbloquear','login','no puede entrar','no entra','no accede','resetear','reset','expiró','nuevo usuario','nueva cuenta','carpeta compartida','carpeta de red','drive','unidad de red']},
+    {cat:'Software / Sistema',kw:['windows','office','excel','word','powerpoint','pdf','adobe','chrome','firefox','navegador','programa','aplicación','aplicacion','software','instalación','instalar','actualización','sistema operativo','driver','pantalla azul','virus','antivirus','licencia','activación','sap','erp','crm','zoom','slack','autocad','macro','vba']},
+    {cat:'Red / Conectividad',kw:['internet','red','wifi','wi-fi','wireless','ethernet','conexión','conexion','conectividad','vpn','ping','lento','lenta','sin internet','sin conexion','router','switch','firewall','proxy','dns','ip','no conecta','no se conecta','no tiene red']}
+  ];
+  const t=texto.toLowerCase();
+  for(const r of REGLAS){if(r.kw.some(k=>t.includes(k)))return r.cat;}
+  return 'Otros';
+}
+
+let _revisionPendiente=[];
+
+function abrirRevisor(){
+  /* Mostrar TODAS las tareas para revisión, ordenadas por fecha desc */
+  _revisionPendiente=tareas.map(t=>({
+    id:t.id, texto:t.texto,
+    usuario: t.usuario_atendido||detectarNombre(t.texto),
+    categoria: t.categoria||sugerirCategoria(t.texto)
+  }));
+
+  const lista=document.getElementById('revisor-lista');
+  lista.innerHTML=`
+    <div class="revisor-header">
+      <span>Tarea</span><span>Usuario</span><span>Tipo de problema</span>
+    </div>`+
+    _revisionPendiente.map((t,i)=>`
+    <div class="revisor-fila" data-idx="${i}">
+      <div class="revisor-texto" title="${esc(t.texto)}">${esc(t.texto)}</div>
+      <input class="revisor-input" data-idx="${i}" data-campo="usuario" value="${esc(t.usuario)}" placeholder="Nombre…" />
+      <select class="revisor-select" data-idx="${i}" data-campo="categoria">
+        <option value="">Sin categoría</option>
+        ${CATS.map(c=>`<option value="${c}" ${t.categoria===c?'selected':''}>${CAT_ICONS_MAP[c]} ${c}</option>`).join('')}
+      </select>
+    </div>`).join('');
+
+  /* Escuchar cambios en tiempo real */
+  lista.querySelectorAll('.revisor-input,.revisor-select').forEach(el=>{
+    el.addEventListener('change',e=>{
+      const idx=+e.target.dataset.idx;
+      const campo=e.target.dataset.campo;
+      _revisionPendiente[idx][campo]=e.target.value;
+    });
+    el.addEventListener('input',e=>{
+      const idx=+e.target.dataset.idx;
+      const campo=e.target.dataset.campo;
+      _revisionPendiente[idx][campo]=e.target.value;
+    });
+  });
+
+  document.getElementById('revisor-estado').textContent=`${_revisionPendiente.length} tareas`;
+  document.getElementById('modal-revisor').style.display='block';
+}
+
+function cerrarRevisor(){
+  document.getElementById('modal-revisor').style.display='none';
+}
+
+async function guardarRevision(){
+  const btn=document.getElementById('btn-guardar-revisor');
+  btn.textContent='Guardando…'; btn.disabled=true;
+  let guardadas=0;
+  for(const item of _revisionPendiente){
+    const tarea=tareas.find(t=>t.id===item.id);
+    if(!tarea) continue;
+    const cambioUsr = item.usuario!==tarea.usuario_atendido;
+    const cambiocat = item.categoria!==tarea.categoria;
+    if(!cambioUsr&&!cambiocat) continue;
+    tarea.usuario_atendido=item.usuario;
+    tarea.categoria=item.categoria;
+    await apiPut(`/tareas/${tarea.id}`,{texto:tarea.texto,completada:tarea.completada,resolucion:tarea.resolucion,prioridad:tarea.prioridad,usuario_atendido:tarea.usuario_atendido,categoria:tarea.categoria});
+    guardadas++;
+  }
+  btn.textContent=`✓ ${guardadas} guardadas`;
+  document.getElementById('revisor-estado').textContent=`${guardadas} tareas actualizadas`;
+  renderDashboard(); renderizar();
+  setTimeout(()=>{btn.textContent='Guardar todo';btn.disabled=false;},3000);
+}
+
 async function asignarUsuariosHistorico(){
   const btn=document.getElementById('btn-asignar-usuarios');
   btn.textContent='Asignando…'; btn.disabled=true;
