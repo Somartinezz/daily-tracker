@@ -57,6 +57,34 @@ app.use('/api/maquinas', requireAuth, require('./routes/maquinas'));
 app.use('/api/cierre',   requireAuth, require('./routes/cierre'));
 app.use('/api/usuarios', requireAuth, require('./routes/usuarios'));
 
+/* ─── ADMIN: categorizar historial ─── */
+app.post('/api/admin/categorizar', requireAuth, async (req, res) => {
+  const db = require('./db');
+  const REGLAS = [
+    { categoria:'Correo / Outlook',    keywords:['outlook','correo','mail','email','bandeja','firma','calendario','teams','meeting','reunion','reunión','invitación','invitacion','microsoft','exchange','adjunto','mensaje','inbox','spam','distribution'] },
+    { categoria:'Equipos / Hardware',  keywords:['notebook','laptop','computadora','pc','equipo','celular','teléfono','telefono','auricular','headset','teclado','mouse','monitor','pantalla','impresora','escaner','scanner','disco','ram','batería','bateria','cargador','cable','usb','hdmi','docking','webcam','microfono','micrófono','cambio de equipo','reemplazo','formatear','hardware'] },
+    { categoria:'Accesos / Permisos',  keywords:['contraseña','password','clave','acceso','permiso','permisos','cuenta','active directory','token','mfa','autenticación','autenticacion','2fa','bloqueo','bloqueado','bloqueada','desbloquear','login','no puede entrar','no entra','no accede','resetear','reset','expiró','expiro','nuevo usuario','nueva cuenta','carpeta compartida','carpeta de red','drive','unidad de red'] },
+    { categoria:'Software / Sistema',  keywords:['windows','office','excel','word','powerpoint','pdf','adobe','chrome','firefox','navegador','programa','aplicación','aplicacion','software','instalación','instalacion','instalar','actualización','actualizacion','sistema operativo','driver','controlador','pantalla azul','virus','antivirus','licencia','activación','sap','erp','crm','zoom','slack','autocad','licencia','macro','vba'] },
+    { categoria:'Red / Conectividad',  keywords:['internet','red','wifi','wi-fi','wireless','ethernet','conexión','conexion','conectividad','vpn','ping','lento','lenta','sin internet','sin conexion','sin conexión','router','switch','firewall','proxy','dns','ip','no conecta','no se conecta','no tiene red'] }
+  ];
+  function clasificar(texto) {
+    const t = texto.toLowerCase();
+    for (const r of REGLAS) { if (r.keywords.some(k => t.includes(k))) return r.categoria; }
+    return 'Otros';
+  }
+  try {
+    const { rows } = await db.query("SELECT id, texto, categoria FROM tareas");
+    let n = 0;
+    for (const t of rows) {
+      if (t.categoria && t.categoria.trim()) continue;
+      const cat = clasificar(t.texto);
+      await db.query("UPDATE tareas SET categoria=$1 WHERE id=$2", [cat, t.id]);
+      n++;
+    }
+    res.json({ ok: true, actualizadas: n });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 /* ─── ARCHIVOS ESTÁTICOS (requiere auth excepto login.html) ─── */
 app.get('/', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
