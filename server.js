@@ -85,6 +85,29 @@ app.post('/api/admin/categorizar', requireAuth, async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+/* ─── ADMIN: asignar usuario_atendido desde el nombre al inicio de la tarea ─── */
+app.post('/api/admin/asignar-usuarios', requireAuth, async (req, res) => {
+  const db = require('./db');
+  try {
+    const { rows } = await db.query("SELECT id, texto, usuario_atendido FROM tareas");
+    let n = 0;
+    for (const t of rows) {
+      if (t.usuario_atendido && t.usuario_atendido.trim()) continue;
+      /* Detectar patrón "Nombre [Apellido] [–|-|:] descripción"
+         El separador puede ser –  —  -  :  seguido de espacio o fin */
+      const match = t.texto.match(/^([A-ZÁÉÍÓÚÜÑa-záéíóúüñ][a-záéíóúüñA-ZÁÉÍÓÚÜÑ]*(?:\s+[A-ZÁÉÍÓÚÜÑa-záéíóúüñ][a-záéíóúüñA-ZÁÉÍÓÚÜÑ]*)?)[\s]*[–—\-:][\s]/u);
+      if (!match) continue;
+      const nombre = match[1].trim();
+      /* Descartar si el "nombre" es una palabra genérica o muy corta */
+      const IGNORAR = new Set(['instalar','cambiar','revisar','actualizar','configurar','conectar','error','problema','soporte','ayuda','tarea','usuario','equipo']);
+      if (nombre.length < 3 || IGNORAR.has(nombre.toLowerCase())) continue;
+      await db.query("UPDATE tareas SET usuario_atendido=$1 WHERE id=$2", [nombre, t.id]);
+      n++;
+    }
+    res.json({ ok: true, actualizadas: n });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 /* ─── ARCHIVOS ESTÁTICOS (requiere auth excepto login.html) ─── */
 app.get('/', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));

@@ -578,7 +578,10 @@
       <div class="dash-bar-list" id="d-errores"></div>
     </div>
     <div class="dash-panel">
-      <div class="dash-panel-title">Usuarios que más solicitan</div>
+      <div class="dash-panel-title" style="display:flex;align-items:center;justify-content:space-between;">
+        Usuarios que más solicitan
+        <button id="btn-asignar-usuarios" onclick="asignarUsuariosHistorico()" style="font-size:0.72rem;padding:4px 10px;background:var(--surface-alt);border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--text-muted);font-family:'DM Sans',sans-serif;" title="Asignar usuarios desde el nombre al inicio de cada tarea">👤 Asignar del historial</button>
+      </div>
       <div class="dash-bar-list" id="d-top-usuarios"></div>
     </div>
     <div class="dash-panel">
@@ -1230,6 +1233,22 @@ async function agregarMaquina(){
 }
 
 /* ─── DASHBOARD ─── */
+async function asignarUsuariosHistorico(){
+  const btn=document.getElementById('btn-asignar-usuarios');
+  btn.textContent='Asignando…'; btn.disabled=true;
+  try{
+    const r=await fetch('/api/admin/asignar-usuarios',{method:'POST'});
+    const d=await r.json();
+    if(d.ok){
+      btn.textContent=`✓ ${d.actualizadas} asignadas`;
+      const rows=await apiGet('/tareas');
+      tareas=rows.map(t=>({id:t.id,texto:t.texto,completada:!!t.completada,resolucion:t.resolucion||'',prioridad:t.prioridad||'media',creadaEn:t.creada_en,usuario_atendido:t.usuario_atendido||'',categoria:t.categoria||''}));
+      renderDashboard(); renderizar();
+      setTimeout(()=>{btn.textContent='👤 Asignar del historial';btn.disabled=false;},4000);
+    }
+  }catch(e){btn.textContent='Error';btn.disabled=false;}
+}
+
 async function categorizarHistorico(){
   const btn=document.getElementById('btn-categorizar');
   btn.textContent='Categorizando…'; btn.disabled=true;
