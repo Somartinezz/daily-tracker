@@ -1297,7 +1297,6 @@ function sugerirCategoria(texto){
 let _revisionPendiente=[];
 
 function abrirRevisor(){
-  /* Mostrar TODAS las tareas para revisión, ordenadas por fecha desc */
   _revisionPendiente=tareas.map(t=>({
     id:t.id, texto:t.texto,
     usuario: t.usuario_atendido||detectarNombre(t.texto),
@@ -1305,32 +1304,54 @@ function abrirRevisor(){
   }));
 
   const lista=document.getElementById('revisor-lista');
-  lista.innerHTML=`
-    <div class="revisor-header">
-      <span>Tarea</span><span>Usuario</span><span>Tipo de problema</span>
-    </div>`+
-    _revisionPendiente.map((t,i)=>`
-    <div class="revisor-fila" data-idx="${i}">
-      <div class="revisor-texto" title="${esc(t.texto)}">${esc(t.texto)}</div>
-      <input class="revisor-input" data-idx="${i}" data-campo="usuario" value="${esc(t.usuario)}" placeholder="Nombre…" />
-      <select class="revisor-select" data-idx="${i}" data-campo="categoria">
-        <option value="">Sin categoría</option>
-        ${CATS.map(c=>`<option value="${c}" ${t.categoria===c?'selected':''}>${CAT_ICONS_MAP[c]} ${c}</option>`).join('')}
-      </select>
-    </div>`).join('');
+  lista.innerHTML='';
 
-  /* Escuchar cambios en tiempo real */
-  lista.querySelectorAll('.revisor-input,.revisor-select').forEach(el=>{
-    el.addEventListener('change',e=>{
-      const idx=+e.target.dataset.idx;
-      const campo=e.target.dataset.campo;
-      _revisionPendiente[idx][campo]=e.target.value;
+  /* Encabezado */
+  const header=document.createElement('div');
+  header.className='revisor-header';
+  ['Tarea','Usuario','Tipo de problema'].forEach(txt=>{
+    const s=document.createElement('span'); s.textContent=txt; header.appendChild(s);
+  });
+  lista.appendChild(header);
+
+  /* Filas — construidas con createElement para evitar problemas con caracteres especiales */
+  _revisionPendiente.forEach((t,i)=>{
+    const fila=document.createElement('div');
+    fila.className='revisor-fila';
+
+    /* Texto de la tarea */
+    const txtDiv=document.createElement('div');
+    txtDiv.className='revisor-texto';
+    txtDiv.textContent=t.texto;
+    txtDiv.title=t.texto;
+
+    /* Input usuario */
+    const inp=document.createElement('input');
+    inp.className='revisor-input';
+    inp.type='text';
+    inp.placeholder='Nombre…';
+    inp.value=t.usuario;
+    inp.addEventListener('input',e=>{ _revisionPendiente[i].usuario=e.target.value; });
+
+    /* Select categoría */
+    const sel=document.createElement('select');
+    sel.className='revisor-select';
+    const optVacio=document.createElement('option');
+    optVacio.value=''; optVacio.textContent='Sin categoría';
+    sel.appendChild(optVacio);
+    CATS.forEach(c=>{
+      const opt=document.createElement('option');
+      opt.value=c;
+      opt.textContent=(CAT_ICONS_MAP[c]||'')+'  '+c;
+      if(t.categoria===c) opt.selected=true;
+      sel.appendChild(opt);
     });
-    el.addEventListener('input',e=>{
-      const idx=+e.target.dataset.idx;
-      const campo=e.target.dataset.campo;
-      _revisionPendiente[idx][campo]=e.target.value;
-    });
+    sel.addEventListener('change',e=>{ _revisionPendiente[i].categoria=e.target.value; });
+
+    fila.appendChild(txtDiv);
+    fila.appendChild(inp);
+    fila.appendChild(sel);
+    lista.appendChild(fila);
   });
 
   document.getElementById('revisor-estado').textContent=`${_revisionPendiente.length} tareas`;
