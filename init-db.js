@@ -70,6 +70,30 @@ async function init() {
     )
   `);
 
+  /* Seed de máquinas conocidas (solo inserta si no existe el serial) */
+  const SEED_MAQUINAS = [
+    { serial:'LR0DB04B',  pertenencia:'DASS',   usuario:'Disponible', estado:'stock'  },
+    { serial:'SPF3ENA3V', pertenencia:'DASS',   usuario:'Disponible', estado:'stock'  },
+    { serial:'PF3NY4P2',  pertenencia:'DASS',   usuario:'Disponible', estado:'stock'  },
+    { serial:'LR0F4ATH',  pertenencia:'DASS',   usuario:'Disponible', estado:'stock'  },
+    { serial:'PF3NHA8Q',  pertenencia:'DASS',   usuario:'Disponible', estado:'stock'  },
+    { serial:'PF3NH5N9',  pertenencia:'DASS',   usuario:'Disponible', estado:'stock'  },
+    { serial:'PF3KJMMS',  pertenencia:'BKP',    usuario:'Massolos',   estado:'en uso' },
+    { serial:'LT104M92',  pertenencia:'BKP',    usuario:'Pereras',    estado:'en uso' },
+    { serial:'PF3KK17N',  pertenencia:'BKP',    usuario:'Sofi',       estado:'en uso' },
+    { serial:'NSX',        pertenencia:'BKP',   usuario:'Chomichi',   estado:'en uso' },
+    { serial:'PF3AFRT8',  pertenencia:'BKP',    usuario:'Aceroe',     estado:'en uso' },
+  ];
+  for (const m of SEED_MAQUINAS) {
+    const { rows } = await db.query('SELECT id FROM maquinas WHERE serial=$1', [m.serial]);
+    if (rows.length > 0) continue;
+    await db.query(
+      'INSERT INTO maquinas (host, serial, pertenencia, usuario, estado) VALUES ($1,$2,$3,$4,$5)',
+      ['', m.serial, m.pertenencia, m.usuario, m.estado]
+    );
+    console.log(`  + ${m.serial} (${m.pertenencia}) → ${m.estado}`);
+  }
+
   console.log('Tablas OK');
   await db.end();
 }

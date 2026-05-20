@@ -85,6 +85,32 @@ app.post('/api/admin/categorizar', requireAuth, async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+/* ─── SEED: máquinas DASS ─── */
+app.post('/api/admin/seed-maquinas', requireAuth, async (req, res) => {
+  const db = require('./db');
+  const MAQUINAS = [
+    { serial:'LR0DB04B',  pertenencia:'DASS' },
+    { serial:'SPF3ENA3V', pertenencia:'DASS' },
+    { serial:'PF3NY4P2',  pertenencia:'DASS' },
+    { serial:'LR0F4ATH',  pertenencia:'DASS' },
+    { serial:'PF3NHA8Q',  pertenencia:'DASS' },
+    { serial:'PF3NH5N9',  pertenencia:'DASS' },
+  ];
+  try {
+    let n = 0;
+    for (const m of MAQUINAS) {
+      const { rows } = await db.query('SELECT id FROM maquinas WHERE serial=$1', [m.serial]);
+      if (rows.length > 0) continue;
+      await db.query(
+        'INSERT INTO maquinas (host, serial, pertenencia, usuario, estado) VALUES ($1,$2,$3,$4,$5)',
+        ['', m.serial, m.pertenencia, 'Disponible', 'stock']
+      );
+      n++;
+    }
+    res.json({ ok: true, insertadas: n });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 /* ─── ADMIN: asignar usuario_atendido desde el nombre al inicio de la tarea ─── */
 app.post('/api/admin/asignar-usuarios', requireAuth, async (req, res) => {
   const db = require('./db');
