@@ -1249,8 +1249,13 @@ function renderizarStock(){
       const idx2=ESTADOS.indexOf(maquinas[idx].estado||'stock');
       const nuevoEstado=ESTADOS[(idx2+1)%ESTADOS.length];
       maquinas[idx].estado=nuevoEstado;
-      await apiPut(`/maquinas/${maq.id}`,{host:maquinas[idx].host,serial:maquinas[idx].serial,pertenencia:maquinas[idx].pertenencia,usuario:maquinas[idx].usuario,estado:nuevoEstado});
-      renderizarStock();
+      /* Actualizar UI inmediatamente sin esperar la API */
+      badge.className=`badge-estado ${ESTADO_CLASS[nuevoEstado]||'stock'}`;
+      badge.textContent=ESTADO_LABELS[nuevoEstado]||'Stock';
+      actualizarCounters();
+      try{
+        await apiPut(`/maquinas/${maq.id}`,{host:maquinas[idx].host,serial:maquinas[idx].serial,pertenencia:maquinas[idx].pertenencia,usuario:maquinas[idx].usuario,estado:nuevoEstado});
+      }catch(e){ console.error('Error al guardar estado:',e); }
     });
     tdEst.appendChild(badge); tr.appendChild(tdEst);
     const tdAcc=document.createElement('td'); tdAcc.className='td-accion';
