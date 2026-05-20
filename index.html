@@ -528,7 +528,10 @@
     <div class="col-derecha">
       <div class="stock-header">
         <div class="seccion-titulo">Stock de máquinas</div>
-        <button class="btn-agregar-maquina" id="btn-agregar-maquina">+ Agregar</button>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button id="btn-sync-host" onclick="syncHostDesdeUsuarios()" style="display:inline-flex;align-items:center;gap:5px;padding:8px 14px;background:var(--surface-alt);border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:0.8rem;font-weight:500;color:var(--text-muted);cursor:pointer;" title="Traer host desde sección Usuarios">🔗 Traer hosts</button>
+          <button class="btn-agregar-maquina" id="btn-agregar-maquina">+ Agregar</button>
+        </div>
       </div>
       <div class="seccion-sub">Inventario de equipos. Editá las celdas, click en estado para ciclar.</div>
       <div class="stock-counters" id="stock-counters">
@@ -1258,6 +1261,21 @@ function renderizarStock(){
     tdAcc.appendChild(btnHist); tdAcc.appendChild(btnDel); tr.appendChild(tdAcc);
     tbody.appendChild(tr);
   });
+}
+
+async function syncHostDesdeUsuarios(){
+  const btn=document.getElementById('btn-sync-host');
+  btn.textContent='Sincronizando…'; btn.disabled=true;
+  try{
+    const r=await fetch('/api/admin/sync-host-usuarios',{method:'POST'});
+    const d=await r.json();
+    if(d.ok){
+      btn.textContent=`✓ ${d.actualizadas} hosts asignados`;
+      maquinas=await apiGet('/maquinas');
+      renderizarStock();
+      setTimeout(()=>{btn.innerHTML='🔗 Traer hosts';btn.disabled=false;},4000);
+    }
+  }catch(e){btn.textContent='Error';btn.disabled=false;}
 }
 
 async function agregarMaquina(){

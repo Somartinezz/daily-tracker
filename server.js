@@ -111,6 +111,24 @@ app.post('/api/admin/seed-maquinas', requireAuth, async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+/* ─── ADMIN: copiar host desde usuarios → maquinas ─── */
+app.post('/api/admin/sync-host-usuarios', requireAuth, async (req, res) => {
+  const db = require('./db');
+  try {
+    const { rows: usuarios } = await db.query('SELECT nombre, equipo FROM usuarios WHERE equipo IS NOT NULL AND equipo != \'\'');
+    const { rows: maquinas } = await db.query('SELECT id, usuario FROM maquinas WHERE (host IS NULL OR host = \'\')');
+    let n = 0;
+    for (const maq of maquinas) {
+      const nombre = (maq.usuario || '').toLowerCase().trim();
+      const match = usuarios.find(u => u.nombre.toLowerCase().trim() === nombre || u.nombre.toLowerCase().includes(nombre) || nombre.includes(u.nombre.toLowerCase()));
+      if (!match || !match.equipo) continue;
+      await db.query('UPDATE maquinas SET host=$1 WHERE id=$2', [match.equipo, maq.id]);
+      n++;
+    }
+    res.json({ ok: true, actualizadas: n });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 /* ─── ADMIN: asignar usuario_atendido desde el nombre al inicio de la tarea ─── */
 app.post('/api/admin/asignar-usuarios', requireAuth, async (req, res) => {
   const db = require('./db');
