@@ -83,6 +83,7 @@ async function init() {
     { serial:'PF3KK17N',  pertenencia:'BKP',    usuario:'Sofi',       estado:'en uso' },
     { serial:'NSX',        pertenencia:'BKP',   usuario:'Chomichi',   estado:'en uso' },
     { serial:'PF3AFRT8',  pertenencia:'BKP',    usuario:'Aceroe',     estado:'en uso' },
+    { serial:'MP2K0HE4',  pertenencia:'Thinkhub', usuario:'Lapiral',  estado:'en uso' },
   ];
   for (const m of SEED_MAQUINAS) {
     const { rows } = await db.query('SELECT id FROM maquinas WHERE serial=$1', [m.serial]);
