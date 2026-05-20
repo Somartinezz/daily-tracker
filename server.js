@@ -56,6 +56,7 @@ app.use('/api/tareas',   requireAuth, require('./routes/tareas'));
 app.use('/api/maquinas', requireAuth, require('./routes/maquinas'));
 app.use('/api/cierre',   requireAuth, require('./routes/cierre'));
 app.use('/api/usuarios', requireAuth, require('./routes/usuarios'));
+app.use('/api/eventos',  requireAuth, require('./routes/eventos'));
 
 /* ─── ADMIN: categorizar historial ─── */
 app.post('/api/admin/categorizar', requireAuth, async (req, res) => {

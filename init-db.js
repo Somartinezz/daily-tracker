@@ -60,6 +60,19 @@ async function init() {
   await db.query(`ALTER TABLE tareas ADD COLUMN IF NOT EXISTS categoria VARCHAR(50) DEFAULT ''`);
 
   await db.query(`
+    CREATE TABLE IF NOT EXISTS eventos (
+      id          SERIAL PRIMARY KEY,
+      titulo      VARCHAR(200) NOT NULL,
+      fecha       DATE NOT NULL,
+      hora_inicio VARCHAR(5) DEFAULT NULL,
+      hora_fin    VARCHAR(5) DEFAULT NULL,
+      descripcion TEXT DEFAULT '',
+      color       VARCHAR(20) DEFAULT '#c4783a',
+      creada_en   TIMESTAMP DEFAULT NOW()
+    )
+  `);
+
+  await db.query(`
     CREATE TABLE IF NOT EXISTS historial_maquinas (
       id             SERIAL PRIMARY KEY,
       maquina_id     INT NOT NULL,
