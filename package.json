@@ -21,6 +21,7 @@
   },
   "homepage": "https://github.com/Somartinezz/daily-tracker#readme",
   "dependencies": {
+    "botbuilder": "^4.23.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",

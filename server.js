@@ -51,12 +51,16 @@ app.post('/api/logout', (req, res) => {
   res.json({ ok: true });
 });
 
+/* ─── BOT DE TEAMS (público — Bot Framework verifica su propio JWT) ─── */
+app.post('/api/bot/messages', require('./routes/bot'));
+
 /* ─── RUTAS PROTEGIDAS ─── */
 app.use('/api/tareas',   requireAuth, require('./routes/tareas'));
 app.use('/api/maquinas', requireAuth, require('./routes/maquinas'));
 app.use('/api/cierre',   requireAuth, require('./routes/cierre'));
 app.use('/api/usuarios', requireAuth, require('./routes/usuarios'));
 app.use('/api/eventos',  requireAuth, require('./routes/eventos'));
+app.use('/api/tickets',  requireAuth, require('./routes/tickets'));
 
 /* ─── ADMIN: categorizar historial ─── */
 app.post('/api/admin/categorizar', requireAuth, async (req, res) => {

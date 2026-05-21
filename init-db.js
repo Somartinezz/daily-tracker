@@ -60,6 +60,20 @@ async function init() {
   await db.query(`ALTER TABLE tareas ADD COLUMN IF NOT EXISTS categoria VARCHAR(50) DEFAULT ''`);
 
   await db.query(`
+    CREATE TABLE IF NOT EXISTS tickets (
+      id                 SERIAL PRIMARY KEY,
+      usuario            VARCHAR(150) NOT NULL,
+      descripcion        TEXT NOT NULL,
+      resumen            VARCHAR(200) DEFAULT '',
+      categoria          VARCHAR(80)  DEFAULT 'Otros',
+      prioridad          VARCHAR(20)  DEFAULT 'media',
+      estado             VARCHAR(30)  DEFAULT 'abierto',
+      fecha_creacion     TIMESTAMP    DEFAULT NOW(),
+      fecha_actualizacion TIMESTAMP   DEFAULT NOW()
+    )
+  `);
+
+  await db.query(`
     CREATE TABLE IF NOT EXISTS eventos (
       id          SERIAL PRIMARY KEY,
       titulo      VARCHAR(200) NOT NULL,

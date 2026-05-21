@@ -365,6 +365,40 @@
     .btn-nuevo-evento{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:500;cursor:pointer;transition:all var(--transition);}
     .btn-nuevo-evento:hover{background:#b36830;}
     /* Modal evento */
+    /* ─── TICKETS ─── */
+    #view-tickets{max-width:1000px;margin:0 auto;padding:28px 24px;}
+    .tickets-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;}
+    .tickets-titulo{font-family:'Lora',serif;font-size:1.5rem;font-weight:600;flex:1;}
+    .tickets-filtros{display:flex;gap:6px;flex-wrap:wrap;}
+    .btn-filtro-ticket{padding:5px 13px;border-radius:99px;border:1.5px solid var(--border);background:var(--surface);font-family:'DM Sans',sans-serif;font-size:0.78rem;cursor:pointer;color:var(--text-muted);transition:all var(--transition);}
+    .btn-filtro-ticket.activo{background:var(--accent);color:#fff;border-color:var(--accent);}
+    .ticket-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:10px;display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:start;}
+    .ticket-card:hover{border-color:var(--accent);box-shadow:0 2px 8px rgba(196,120,58,0.08);}
+    .ticket-id{font-size:0.72rem;font-weight:600;color:var(--text-muted);white-space:nowrap;padding-top:2px;}
+    .ticket-body{min-width:0;}
+    .ticket-resumen{font-size:0.92rem;font-weight:500;color:var(--text);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .ticket-desc{font-size:0.8rem;color:var(--text-muted);margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+    .ticket-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+    .ticket-usuario{font-size:0.75rem;color:var(--text-muted);}
+    .ticket-fecha{font-size:0.72rem;color:var(--text-muted);}
+    .ticket-acciones{display:flex;flex-direction:column;gap:6px;align-items:flex-end;}
+    .select-ticket-estado{padding:5px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;font-size:0.75rem;background:var(--surface);color:var(--text);cursor:pointer;outline:none;}
+    .select-ticket-estado:focus{border-color:var(--accent);}
+    .badge-ticket-prio{padding:2px 9px;border-radius:99px;font-size:0.68rem;font-weight:600;white-space:nowrap;}
+    .badge-ticket-prio.alta{background:var(--alta-bg);color:var(--alta);}
+    .badge-ticket-prio.media{background:var(--media-bg);color:var(--media);}
+    .badge-ticket-prio.baja{background:var(--baja-bg);color:var(--baja);}
+    .badge-ticket-cat{padding:2px 9px;border-radius:99px;font-size:0.68rem;background:var(--surface-alt);color:var(--text-muted);}
+    .badge-ticket-estado{padding:2px 9px;border-radius:99px;font-size:0.68rem;font-weight:500;}
+    .badge-ticket-estado.abierto{background:#fef3c7;color:#92400e;}
+    .badge-ticket-estado.en-progreso{background:var(--edit-light);color:var(--edit);}
+    .badge-ticket-estado.resuelto{background:var(--done-light);color:var(--done);}
+    .badge-ticket-estado.cerrado{background:var(--surface-alt);color:var(--text-muted);}
+    .tickets-vacio{text-align:center;padding:48px 24px;color:var(--text-muted);font-size:0.88rem;}
+    .tickets-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
+    .ticket-stat{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:14px 16px;text-align:center;}
+    .ticket-stat-num{font-family:'Lora',serif;font-size:1.6rem;font-weight:600;color:var(--accent);}
+    .ticket-stat-label{font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-top:2px;}
     .modal-ev-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:8000;align-items:center;justify-content:center;}
     .modal-ev-overlay.visible{display:flex;}
     .modal-ev{background:var(--surface);border-radius:14px;width:100%;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,0.2);overflow:hidden;}
@@ -479,6 +513,7 @@
     <button class="h-nav-btn" data-vista="dashboard">Dashboard</button>
     <button class="h-nav-btn" data-vista="calendario">Calendario</button>
     <button class="h-nav-btn" data-vista="usuarios">Usuarios</button>
+    <button class="h-nav-btn" data-vista="tickets">Tickets</button>
   </nav>
 
   <div class="h-progreso">
@@ -692,6 +727,28 @@
   </div>
 </div>
 
+<!-- ─── VISTA: TICKETS ─── -->
+<div id="view-tickets" class="vista">
+  <div class="tickets-toolbar">
+    <div class="tickets-titulo">Tickets de soporte</div>
+    <button onclick="cargarTickets()" style="padding:7px 14px;background:var(--surface-alt);border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:0.82rem;cursor:pointer;">↻ Actualizar</button>
+  </div>
+  <div class="tickets-stats">
+    <div class="ticket-stat"><div class="ticket-stat-num" id="tk-total">0</div><div class="ticket-stat-label">Total</div></div>
+    <div class="ticket-stat"><div class="ticket-stat-num" style="color:#92400e" id="tk-abiertos">0</div><div class="ticket-stat-label">Abiertos</div></div>
+    <div class="ticket-stat"><div class="ticket-stat-num" style="color:var(--edit)" id="tk-progreso">0</div><div class="ticket-stat-label">En progreso</div></div>
+    <div class="ticket-stat"><div class="ticket-stat-num" style="color:var(--done)" id="tk-resueltos">0</div><div class="ticket-stat-label">Resueltos</div></div>
+  </div>
+  <div class="tickets-filtros" style="margin-bottom:16px;">
+    <button class="btn-filtro-ticket activo" data-filtro-tk="todos">Todos</button>
+    <button class="btn-filtro-ticket" data-filtro-tk="abierto">Abiertos</button>
+    <button class="btn-filtro-ticket" data-filtro-tk="en progreso">En progreso</button>
+    <button class="btn-filtro-ticket" data-filtro-tk="resuelto">Resueltos</button>
+    <button class="btn-filtro-ticket" data-filtro-tk="cerrado">Cerrados</button>
+  </div>
+  <div id="tickets-lista"></div>
+</div>
+
 <!-- ─── MODAL EVENTO ─── -->
 <div class="modal-ev-overlay" id="modal-ev-overlay">
   <div class="modal-ev">
@@ -865,6 +922,7 @@ document.querySelectorAll('.h-nav-btn').forEach(btn=>{
     document.getElementById('view-'+vista).classList.add('activa');
     if(vista==='dashboard') renderDashboard();
     if(vista==='calendario') renderCalendario();
+    if(vista==='tickets') cargarTickets();
   });
 });
 
@@ -2014,6 +2072,102 @@ function exportarPDF(){
 }
 
 /* ─── INIT ─── */
+/* ─── TICKETS ─── */
+let tickets = [];
+let filtroTicket = 'todos';
+
+async function cargarTickets(){
+  try {
+    tickets = await apiGet('/tickets');
+    renderizarTickets();
+  } catch(e){ console.error('Error cargando tickets:', e); }
+}
+
+function renderizarTickets(){
+  const lista = document.getElementById('tickets-lista');
+  const filtrados = filtroTicket === 'todos' ? tickets : tickets.filter(t => t.estado === filtroTicket);
+
+  /* Stats */
+  document.getElementById('tk-total').textContent    = tickets.length;
+  document.getElementById('tk-abiertos').textContent = tickets.filter(t=>t.estado==='abierto').length;
+  document.getElementById('tk-progreso').textContent  = tickets.filter(t=>t.estado==='en progreso').length;
+  document.getElementById('tk-resueltos').textContent = tickets.filter(t=>t.estado==='resuelto').length;
+
+  if(filtrados.length === 0){
+    lista.innerHTML = `<div class="tickets-vacio">No hay tickets ${filtroTicket !== 'todos' ? 'con estado "'+filtroTicket+'"' : ''}.</div>`;
+    return;
+  }
+
+  lista.innerHTML = '';
+  filtrados.forEach(tk => {
+    const card = document.createElement('div');
+    card.className = 'ticket-card';
+
+    const fecha = new Date(tk.fecha_creacion).toLocaleString('es-AR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    const estadoClass = tk.estado.replace(' ','-');
+
+    /* ID */
+    const idCol = document.createElement('div');
+    idCol.className = 'ticket-id';
+    idCol.textContent = `#${tk.id}`;
+
+    /* Cuerpo */
+    const body = document.createElement('div');
+    body.className = 'ticket-body';
+    body.innerHTML = `
+      <div class="ticket-resumen">${esc(tk.resumen||tk.descripcion)}</div>
+      <div class="ticket-desc">${esc(tk.descripcion)}</div>
+      <div class="ticket-meta">
+        <span class="badge-ticket-prio ${tk.prioridad||'media'}">${{alta:'🔴 Alta',media:'🟡 Media',baja:'🟢 Baja'}[tk.prioridad]||tk.prioridad}</span>
+        <span class="badge-ticket-cat">${esc(tk.categoria||'Otros')}</span>
+        <span class="ticket-usuario">👤 ${esc(tk.usuario)}</span>
+        <span class="ticket-fecha">🕐 ${fecha}</span>
+      </div>`;
+
+    /* Acciones */
+    const acc = document.createElement('div');
+    acc.className = 'ticket-acciones';
+
+    const estadoBadge = document.createElement('span');
+    estadoBadge.className = `badge-ticket-estado ${estadoClass}`;
+    estadoBadge.textContent = tk.estado.charAt(0).toUpperCase()+tk.estado.slice(1);
+
+    const sel = document.createElement('select');
+    sel.className = 'select-ticket-estado';
+    ['abierto','en progreso','resuelto','cerrado'].forEach(e => {
+      const opt = document.createElement('option');
+      opt.value = e; opt.textContent = e.charAt(0).toUpperCase()+e.slice(1);
+      if(e === tk.estado) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener('change', async () => {
+      await fetch(`${API}/tickets/${tk.id}`, {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({estado:sel.value})});
+      tk.estado = sel.value;
+      estadoBadge.className = `badge-ticket-estado ${sel.value.replace(' ','-')}`;
+      estadoBadge.textContent = sel.value.charAt(0).toUpperCase()+sel.value.slice(1);
+      renderizarTickets();
+    });
+
+    acc.appendChild(estadoBadge);
+    acc.appendChild(sel);
+
+    card.appendChild(idCol);
+    card.appendChild(body);
+    card.appendChild(acc);
+    lista.appendChild(card);
+  });
+}
+
+/* Filtros de tickets */
+document.querySelectorAll('.btn-filtro-ticket').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.btn-filtro-ticket').forEach(b => b.classList.remove('activo'));
+    btn.classList.add('activo');
+    filtroTicket = btn.dataset.filtroTk;
+    renderizarTickets();
+  });
+});
+
 async function init(){
   await cargarTareas();
   renderizar();
