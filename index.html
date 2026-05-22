@@ -486,16 +486,105 @@
     .import-hint strong{color:var(--text);font-weight:500;}
 
     /* ─── RESPONSIVE ─── */
-    @media(max-width:1024px){.dash-cards{grid-template-columns:repeat(2,1fr);}.dash-grid{grid-template-columns:1fr;}}
-    @media(max-width:900px){
-      header{grid-template-columns:1fr;gap:12px;}
-      .h-nav{justify-content:flex-start;flex-wrap:wrap;}
-      .h-progreso,.h-racha,.h-prioritaria{display:none;}
-      #view-tareas main{grid-template-columns:1fr;}
+
+    /* Tablet grande / laptop chico */
+    @media(max-width:1100px){
+      #view-tareas main{grid-template-columns:1fr 420px;}
+      .dash-cards{grid-template-columns:repeat(2,1fr);}
+      .dash-grid{grid-template-columns:1fr;}
+      .tickets-stats{grid-template-columns:repeat(2,1fr);}
+    }
+
+    /* Tablet */
+    @media(max-width:860px){
+      /* Header: apilar en 2 filas */
+      header{
+        grid-template-columns:1fr auto;
+        grid-template-rows:auto auto;
+        gap:8px 12px;
+        padding:10px 16px;
+      }
+      .h-brand{grid-column:1;grid-row:1;}
+      .h-nav{grid-column:1/-1;grid-row:2;justify-content:flex-start;flex-wrap:wrap;gap:3px;}
+      .h-progreso{grid-column:2;grid-row:1;text-align:right;}
+      .h-racha{display:none;}
+      .h-prioritaria{display:none;}
+      .h-nav-btn{padding:6px 12px;font-size:0.78rem;}
+
+      /* Layout tareas: una columna */
+      #view-tareas main{grid-template-columns:1fr;padding:16px;}
       .col-derecha{position:static;}
+
+      /* Formulario nueva tarea */
+      .nueva-tarea{flex-wrap:wrap;gap:8px;}
+      .nueva-tarea input[type=text]{width:100%;}
+      .select-categoria{min-width:140px;flex:1;}
+
+      /* Stock tabla: scroll horizontal */
+      .stock-tabla-wrap{overflow-x:auto;}
+      .stock-header{flex-wrap:wrap;}
+
+      /* Dashboard */
+      .dash-cards{grid-template-columns:repeat(2,1fr);}
+      .dash-grid{grid-template-columns:1fr;}
+
+      /* Tickets */
+      .tickets-stats{grid-template-columns:repeat(2,1fr);}
+      .ticket-card{grid-template-columns:auto 1fr;grid-template-rows:auto auto;}
+      .ticket-acciones{grid-column:1/-1;flex-direction:row;align-items:center;justify-content:flex-end;border-top:1px solid var(--border);padding-top:8px;margin-top:4px;}
+
+      /* Calendario */
+      #view-calendario{padding:16px;}
+      .cal-dia{min-height:56px;}
+
+      /* Usuarios tabla scroll */
+      .usuarios-tabla-wrap{overflow-x:auto;}
+
+      /* Revisor modal */
+      .revisor-fila{grid-template-columns:1fr;}
+      .revisor-header{display:none;}
+
       .quick-add-wrap{display:none;}
     }
-    @media(max-width:600px){.dash-cards{grid-template-columns:1fr 1fr;}.cal-dia{min-height:52px;}}
+
+    /* Móvil */
+    @media(max-width:540px){
+      header{padding:8px 12px;}
+      .h-titulo{font-size:1.1rem;}
+      .h-nav-btn{padding:5px 9px;font-size:0.74rem;}
+      .h-progreso{display:none;}
+
+      #view-tareas main,
+      #view-dashboard,
+      #view-calendario,
+      #view-usuarios,
+      #view-tickets{padding:12px;}
+
+      .nueva-tarea{flex-direction:column;}
+      .nueva-tarea>*{width:100%;}
+      .select-categoria,.select-prioridad{width:100%;}
+      .btn-agregar{width:100%;}
+
+      .dash-cards{grid-template-columns:1fr 1fr;}
+      .tickets-stats{grid-template-columns:1fr 1fr;}
+      .ticket-card{grid-template-columns:1fr;}
+      .ticket-id{display:none;}
+
+      .cal-dia{min-height:44px;font-size:0.72rem;padding:3px;}
+      .cal-dia-num{font-size:0.78rem;}
+      .cal-count{display:none;}
+      .cal-grid-header .cal-dia-header{font-size:0.68rem;}
+
+      /* Stock: ocultar columnas menos importantes en móvil */
+      .stock-tabla th:nth-child(3),
+      .stock-tabla td:nth-child(3){display:none;}
+
+      /* Modal eventos */
+      .modal-ev{margin:8px;max-width:100%;}
+
+      /* Historial panel */
+      .historial-panel{width:100%;}
+    }
   </style>
 </head>
 <body>
