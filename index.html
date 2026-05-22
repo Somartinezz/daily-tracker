@@ -1123,8 +1123,17 @@ function actualizarTimeline(){
 }
 
 /* ─── HELPERS FECHA ─── */
-function claveDelDia(iso){ return iso?iso.slice(0,10):'1970-01-01'; }
-function esHoy(iso){ return claveDelDia(iso)===new Date().toISOString().slice(0,10); }
+function claveDelDia(iso){
+  if(!iso) return '1970-01-01';
+  /* Usar fecha LOCAL del navegador para evitar desfase UTC vs Argentina (UTC-3) */
+  const d=new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function hoyLocal(){
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function esHoy(iso){ return claveDelDia(iso)===hoyLocal(); }
 function formatearEncabezadoDia(clave){
   const [y,m,d]=clave.split('-').map(Number);
   return new Date(y,m-1,d).toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
@@ -1175,7 +1184,21 @@ function renderizar(){
       contenedor.appendChild(grupo);
     });
   }
-  deHoy.forEach(t=>contenedor.appendChild(crearElementoTarea(t)));
+  /* Sección HOY con encabezado visible */
+  if(deHoy.length>0){
+    const hdrHoy=document.createElement('div');
+    hdrHoy.className='grupo-dia-header';
+    hdrHoy.style.cssText='margin-bottom:8px;cursor:default;';
+    const comp=deHoy.filter(t=>t.completada).length, pend=deHoy.filter(t=>!t.completada).length;
+    hdrHoy.innerHTML=`
+      <span class="grupo-dia-fecha">Hoy — ${formatearEncabezadoDia(hoyLocal())}</span>
+      <div class="grupo-dia-stats">
+        ${pend>0?`<span class="grupo-stat-pend">${pend} pendiente${pend!==1?'s':''}</span>`:''}
+        ${comp>0?`<span class="grupo-stat-comp">${comp} completada${comp!==1?'s':''}</span>`:''}
+      </div>`;
+    contenedor.appendChild(hdrHoy);
+    deHoy.forEach(t=>contenedor.appendChild(crearElementoTarea(t)));
+  }
   actualizarProgreso(); renderizarSugerencias(); actualizarTimeline();
 }
 
@@ -1743,7 +1766,7 @@ function renderDashboard(){
 
 /* ─── CALENDARIO ─── */
 function renderCalendario(){
-  const ahora=new Date(), hoyStr=ahora.toISOString().slice(0,10);
+  const hoyStr=hoyLocal();
   const primerDia=new Date(calAño,calMes,1).getDay();
   const diasEnMes=new Date(calAño,calMes+1,0).getDate();
   const mesLabel=new Date(calAño,calMes,1).toLocaleDateString('es-AR',{month:'long',year:'numeric'});
