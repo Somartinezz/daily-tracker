@@ -140,7 +140,14 @@
     .badge-prioridad.alta{background:var(--alta-bg);color:var(--alta);}
     .badge-prioridad.media{background:var(--media-bg);color:var(--media);}
     .badge-prioridad.baja{background:var(--baja-bg);color:var(--baja);}
-    .tarea-usuario-badge{font-size:0.7rem;color:var(--text-muted);background:var(--surface-alt);padding:2px 7px;border-radius:99px;font-weight:400;}
+    .tarea-usuario-badge{font-size:0.7rem;color:var(--text-muted);background:var(--surface-alt);padding:2px 7px;border-radius:99px;font-weight:400;cursor:pointer;transition:background var(--transition);}
+    .tarea-usuario-badge:hover{background:var(--accent-light);color:var(--accent);}
+    .tarea-usuario-badge.editando-u{background:transparent;padding:0;}
+    .input-usuario-inline{font-size:0.78rem;padding:2px 8px;border:1.5px solid var(--accent);border-radius:99px;font-family:'DM Sans',sans-serif;outline:none;background:var(--surface);color:var(--text);width:130px;}
+    .btn-add-usuario{font-size:0.7rem;color:var(--text-muted);background:var(--surface-alt);padding:2px 8px;border-radius:99px;border:1.5px dashed var(--border);cursor:pointer;transition:all var(--transition);}
+    .btn-add-usuario:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light);}
+    .input-fecha-tarea{padding:9px 10px;border:1.5px solid var(--border);border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text);outline:none;cursor:pointer;}
+    .input-fecha-tarea:focus{border-color:var(--accent);}
     .tarea-fecha{font-size:0.7rem;color:var(--text-muted);font-weight:300;margin-top:3px;}
     .tarea-acciones{display:flex;gap:3px;flex-shrink:0;opacity:0;transition:opacity var(--transition);}
     .tarea:hover .tarea-acciones,.tarea.editando .tarea-acciones{opacity:1;}
@@ -650,7 +657,8 @@
         <button class="btn-agregar" id="btn-agregar">+ Agregar</button>
       </div>
 
-      <div class="tarea-extra-row" style="position:relative">
+      <div class="tarea-extra-row" style="position:relative;flex-wrap:wrap;gap:8px;">
+        <input type="date" class="input-fecha-tarea" id="input-fecha-tarea" title="Fecha de la tarea (por defecto hoy)" />
         <input type="text" class="input-usuario-atendido" id="input-usuario-atendido"
           placeholder="Usuario que lo solicitó (opcional)…" autocomplete="off" maxlength="80" list="lista-usuarios-datalist" />
         <datalist id="lista-usuarios-datalist"></datalist>
@@ -1211,7 +1219,6 @@ function crearElementoTarea(tarea){
   const fechaStr=tarea.creadaEn?new Date(tarea.creadaEn).toLocaleString('es-AR',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
   const prior=tarea.prioridad||'media';
   const priorLabel={alta:'Alta',media:'Media',baja:'Baja'}[prior];
-  const usuBadge=tarea.usuario_atendido?`<span class="tarea-usuario-badge">👤 ${esc(tarea.usuario_atendido)}</span>`:'';
   const catBadge=tarea.categoria?`<span class="badge-categoria">${esc(tarea.categoria)}</span>`:'';
   el.innerHTML=`
     <div class="tarea-header">
@@ -1221,7 +1228,6 @@ function crearElementoTarea(tarea){
           <span class="tarea-texto">${esc(tarea.texto)}</span>
           <span class="badge-prioridad ${prior}">${priorLabel}</span>
           ${catBadge}
-          ${usuBadge}
         </div>
         ${fechaStr?`<div class="tarea-fecha">${fechaStr}</div>`:''}
       </div>
@@ -1237,6 +1243,45 @@ function crearElementoTarea(tarea){
         <textarea class="resolucion-input" placeholder="Describí cómo resolviste esta tarea…" maxlength="500">${esc(tarea.resolucion||'')}</textarea>
       </div>
     </div>`;
+
+  /* ── Usuario inline edit ── */
+  (function(){
+    const tareaTop=el.querySelector('.tarea-top');
+    function crearUsuEl(){
+      if(tarea.usuario_atendido){
+        const badge=document.createElement('span');
+        badge.className='tarea-usuario-badge';
+        badge.textContent='👤 '+tarea.usuario_atendido;
+        badge.addEventListener('click',()=>abrirInputUsu(badge));
+        return badge;
+      } else {
+        const btn=document.createElement('button');
+        btn.className='btn-add-usuario';
+        btn.textContent='+ Usuario';
+        btn.addEventListener('click',()=>abrirInputUsu(btn));
+        return btn;
+      }
+    }
+    function abrirInputUsu(el_badge){
+      const input=document.createElement('input');
+      input.className='input-usuario-inline';
+      input.value=tarea.usuario_atendido||'';
+      input.placeholder='Nombre usuario…';
+      input.maxLength=80;
+      el_badge.replaceWith(input);
+      input.focus(); input.select();
+      function guardar(){
+        const v=input.value.trim();
+        tarea.usuario_atendido=v;
+        apiPut(`/tareas/${tarea.id}`,{texto:tarea.texto,completada:tarea.completada,resolucion:tarea.resolucion,prioridad:tarea.prioridad,usuario_atendido:v,categoria:tarea.categoria||''});
+        input.replaceWith(crearUsuEl());
+      }
+      input.addEventListener('blur',guardar);
+      input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();input.blur();}if(e.key==='Escape'){input.removeEventListener('blur',guardar);input.replaceWith(crearUsuEl());}});
+    }
+    const usuEl=crearUsuEl();
+    tareaTop.appendChild(usuEl);
+  })();
 
   el.querySelector('input[type="checkbox"]').addEventListener('change',e=>toggleCompletada(tarea.id,e.target.checked,el));
   let _resTimer={};
@@ -1311,9 +1356,18 @@ function agregarTarea(textoParam){
   const prioridad=document.getElementById('select-prioridad').value;
   const usuario_atendido=document.getElementById('input-usuario-atendido').value.trim();
   const categoria=document.getElementById('select-categoria').value;
-  const nueva={id:generarId(),texto,completada:false,resolucion:'',prioridad,creadaEn:new Date().toISOString(),usuario_atendido,categoria};
+  /* Fecha: usar picker si tiene valor, si no, hoy en hora local */
+  const fechaPicker=document.getElementById('input-fecha-tarea').value;
+  let creadaEn;
+  if(fechaPicker){
+    /* Construir fecha en hora local del medio día para evitar desfases de zona horaria */
+    creadaEn=new Date(fechaPicker+'T12:00:00').toISOString();
+  } else {
+    creadaEn=new Date().toISOString();
+  }
+  const nueva={id:generarId(),texto,completada:false,resolucion:'',prioridad,creadaEn,usuario_atendido,categoria};
   tareas.unshift(nueva);
-  apiPost('/tareas',{id:nueva.id,texto,completada:false,resolucion:'',prioridad,creada_en:nueva.creadaEn,usuario_atendido,categoria});
+  apiPost('/tareas',{id:nueva.id,texto,completada:false,resolucion:'',prioridad,creada_en:creadaEn,usuario_atendido,categoria});
   input.value=''; document.getElementById('select-categoria').value=''; input.focus(); renderizar();
 }
 
