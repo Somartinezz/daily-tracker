@@ -1169,6 +1169,9 @@ function renderizar(){
       grupo.querySelector('.grupo-dia-header').addEventListener('click',()=>grupo.classList.toggle('abierto'));
       const listaEl=grupo.querySelector('.grupo-dia-lista');
       ts.forEach(t=>listaEl.appendChild(crearElementoTarea(t)));
+      /* Abrir automáticamente si tiene pendientes o es el día más reciente */
+      const esMasReciente=clave===Object.keys(porDia).sort((a,b)=>b.localeCompare(a))[0];
+      if(ts.some(t=>!t.completada)||esMasReciente) grupo.classList.add('abierto');
       contenedor.appendChild(grupo);
     });
   }
