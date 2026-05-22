@@ -72,7 +72,6 @@
     .select-prioridad:focus{border-color:var(--accent);}
     .select-categoria{padding:11px 10px;border:1.5px solid var(--border);border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text);outline:none;cursor:pointer;min-width:160px;}
     .select-categoria:focus{border-color:var(--accent);}
-    .badge-categoria{display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;font-size:0.68rem;font-weight:500;flex-shrink:0;letter-spacing:0.02em;background:var(--surface-alt);color:var(--text-muted);}
     .dash-cat-icon{font-size:1.1rem;margin-right:6px;}
     .revisor-fila{display:grid;grid-template-columns:1fr 160px 180px;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);}
     .revisor-fila:last-child{border-bottom:none;}
@@ -146,6 +145,13 @@
     .input-usuario-inline{font-size:0.78rem;padding:2px 8px;border:1.5px solid var(--accent);border-radius:99px;font-family:'DM Sans',sans-serif;outline:none;background:var(--surface);color:var(--text);width:130px;}
     .btn-add-usuario{font-size:0.7rem;color:var(--text-muted);background:var(--surface-alt);padding:2px 8px;border-radius:99px;border:1.5px dashed var(--border);cursor:pointer;transition:all var(--transition);}
     .btn-add-usuario:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light);}
+    .badge-categoria{display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;font-size:0.68rem;font-weight:500;flex-shrink:0;letter-spacing:0.02em;background:var(--surface-alt);color:var(--text-muted);cursor:pointer;transition:background var(--transition);}
+    .badge-categoria:hover{background:var(--accent-light);color:var(--accent);}
+    .btn-add-cat{font-size:0.7rem;color:var(--text-muted);background:var(--surface-alt);padding:2px 8px;border-radius:99px;border:1.5px dashed var(--border);cursor:pointer;transition:all var(--transition);}
+    .btn-add-cat:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light);}
+    .cat-editor-wrap{display:inline-flex;align-items:center;gap:4px;}
+    .select-cat-inline{font-size:0.72rem;padding:2px 6px;border:1.5px solid var(--accent);border-radius:99px;font-family:'DM Sans',sans-serif;outline:none;background:var(--surface);color:var(--text);cursor:pointer;}
+    .btn-listo-cat{font-size:0.7rem;padding:2px 10px;border-radius:99px;border:none;background:var(--accent);color:#fff;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;}
     .input-fecha-tarea{padding:9px 10px;border:1.5px solid var(--border);border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text);outline:none;cursor:pointer;}
     .input-fecha-tarea:focus{border-color:var(--accent);}
     .tarea-fecha{font-size:0.7rem;color:var(--text-muted);font-weight:300;margin-top:3px;}
@@ -1219,7 +1225,6 @@ function crearElementoTarea(tarea){
   const fechaStr=tarea.creadaEn?new Date(tarea.creadaEn).toLocaleString('es-AR',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
   const prior=tarea.prioridad||'media';
   const priorLabel={alta:'Alta',media:'Media',baja:'Baja'}[prior];
-  const catBadge=tarea.categoria?`<span class="badge-categoria">${esc(tarea.categoria)}</span>`:'';
   el.innerHTML=`
     <div class="tarea-header">
       <div class="checkbox-wrap"><input type="checkbox" id="check-${tarea.id}" ${tarea.completada?'checked':''} /></div>
@@ -1227,7 +1232,6 @@ function crearElementoTarea(tarea){
         <div class="tarea-top">
           <span class="tarea-texto">${esc(tarea.texto)}</span>
           <span class="badge-prioridad ${prior}">${priorLabel}</span>
-          ${catBadge}
         </div>
         ${fechaStr?`<div class="tarea-fecha">${fechaStr}</div>`:''}
       </div>
@@ -1281,6 +1285,58 @@ function crearElementoTarea(tarea){
     }
     const usuEl=crearUsuEl();
     tareaTop.appendChild(usuEl);
+  })();
+
+  /* ── Categoría inline edit ── */
+  (function(){
+    const tareaTop=el.querySelector('.tarea-top');
+    const CATS=['Correo / Outlook','Equipos / Hardware','Accesos / Permisos','Software / Sistema','Red / Conectividad','Otros'];
+    function crearCatEl(){
+      if(tarea.categoria){
+        const badge=document.createElement('span');
+        badge.className='badge-categoria';
+        badge.textContent=tarea.categoria;
+        badge.title='Clic para editar categoría';
+        badge.addEventListener('click',()=>abrirSelectorCat(badge));
+        return badge;
+      } else {
+        const btn=document.createElement('button');
+        btn.className='btn-add-cat';
+        btn.textContent='+ Categoría';
+        btn.addEventListener('click',()=>abrirSelectorCat(btn));
+        return btn;
+      }
+    }
+    function abrirSelectorCat(origen){
+      const wrap=document.createElement('span');
+      wrap.className='cat-editor-wrap';
+      const sel=document.createElement('select');
+      sel.className='select-cat-inline';
+      const opVacia=document.createElement('option');
+      opVacia.value=''; opVacia.textContent='Sin categoría';
+      sel.appendChild(opVacia);
+      CATS.forEach(c=>{
+        const op=document.createElement('option');
+        op.value=c; op.textContent=c;
+        if(c===tarea.categoria) op.selected=true;
+        sel.appendChild(op);
+      });
+      const btnListo=document.createElement('button');
+      btnListo.className='btn-listo-cat';
+      btnListo.textContent='Listo';
+      wrap.appendChild(sel); wrap.appendChild(btnListo);
+      origen.replaceWith(wrap);
+      sel.focus();
+      function guardar(){
+        const v=sel.value;
+        tarea.categoria=v;
+        apiPut(`/tareas/${tarea.id}`,{texto:tarea.texto,completada:tarea.completada,resolucion:tarea.resolucion,prioridad:tarea.prioridad,usuario_atendido:tarea.usuario_atendido||'',categoria:v});
+        wrap.replaceWith(crearCatEl());
+      }
+      btnListo.addEventListener('click',guardar);
+      sel.addEventListener('keydown',e=>{if(e.key==='Escape'){wrap.replaceWith(crearCatEl());}});
+    }
+    tareaTop.appendChild(crearCatEl());
   })();
 
   el.querySelector('input[type="checkbox"]').addEventListener('change',e=>toggleCompletada(tarea.id,e.target.checked,el));
