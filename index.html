@@ -1233,6 +1233,21 @@ function renderizar(){
   contenedor.innerHTML='';
   const deHoy=lista.filter(t=>esHoy(t.creadaEn)), anteriores=lista.filter(t=>!esHoy(t.creadaEn));
   const pendAnt=anteriores.filter(t=>!t.completada).length;
+  /* Sección HOY — primero */
+  if(deHoy.length>0){
+    const hdrHoy=document.createElement('div');
+    hdrHoy.className='grupo-dia-header';
+    hdrHoy.style.cssText='margin-bottom:8px;cursor:default;';
+    const comp=deHoy.filter(t=>t.completada).length, pend=deHoy.filter(t=>!t.completada).length;
+    hdrHoy.innerHTML=`
+      <span class="grupo-dia-fecha">Hoy — ${formatearEncabezadoDia(hoyLocal())}</span>
+      <div class="grupo-dia-stats">
+        ${pend>0?`<span class="grupo-stat-pend">${pend} pendiente${pend!==1?'s':''}</span>`:''}
+        ${comp>0?`<span class="grupo-stat-comp">${comp} completada${comp!==1?'s':''}</span>`:''}
+      </div>`;
+    contenedor.appendChild(hdrHoy);
+    deHoy.forEach(t=>contenedor.appendChild(crearElementoTarea(t)));
+  }
   if(pendAnt>0){
     const notif=document.createElement('div');
     notif.className='notif-pendientes';
@@ -1263,21 +1278,6 @@ function renderizar(){
       if(ts.some(t=>!t.completada)||esMasReciente) grupo.classList.add('abierto');
       contenedor.appendChild(grupo);
     });
-  }
-  /* Sección HOY con encabezado visible */
-  if(deHoy.length>0){
-    const hdrHoy=document.createElement('div');
-    hdrHoy.className='grupo-dia-header';
-    hdrHoy.style.cssText='margin-bottom:8px;cursor:default;';
-    const comp=deHoy.filter(t=>t.completada).length, pend=deHoy.filter(t=>!t.completada).length;
-    hdrHoy.innerHTML=`
-      <span class="grupo-dia-fecha">Hoy — ${formatearEncabezadoDia(hoyLocal())}</span>
-      <div class="grupo-dia-stats">
-        ${pend>0?`<span class="grupo-stat-pend">${pend} pendiente${pend!==1?'s':''}</span>`:''}
-        ${comp>0?`<span class="grupo-stat-comp">${comp} completada${comp!==1?'s':''}</span>`:''}
-      </div>`;
-    contenedor.appendChild(hdrHoy);
-    deHoy.forEach(t=>contenedor.appendChild(crearElementoTarea(t)));
   }
   actualizarProgreso(); renderizarSugerencias(); actualizarTimeline();
 }
