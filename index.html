@@ -200,6 +200,7 @@
     .tarea{border-radius:var(--radius-sm);padding:16px 18px;display:flex;flex-direction:column;gap:10px;border:1px solid transparent;background:var(--surface);transition:box-shadow var(--transition),border-color var(--transition);animation:slideIn 0.22s ease both;}
     .tarea:hover{box-shadow:0 4px 20px rgba(0,0,0,0.3);}
     .tarea.completada{background:var(--done-light);border:1px solid #b0d4b8;color:var(--done-ink);}
+    .tarea.en-curso{background:#fef3e2;border:1px solid #f0c97a;color:#5a3e10;}
     .tarea.editando{background:var(--edit-light);border:1px solid #7faec3;color:var(--edit-ink);}
     .tarea.saliendo{animation:slideOut 0.28s ease forwards;pointer-events:none;overflow:hidden;}
     /* Task layout */
@@ -253,6 +254,9 @@
     .btn-icono{width:28px;height:28px;border:none;border-radius:6px;background:transparent;cursor:pointer;font-size:0.88rem;display:flex;align-items:center;justify-content:center;transition:all var(--transition);color:inherit;opacity:0.65;}
     .tarea:not(.completada):not(.editando) .btn-icono{color:var(--text-muted);}
     .btn-icono:hover{opacity:1;}
+    .btn-icono.en-curso-toggle{color:#c5803a;}
+    .tarea.en-curso .btn-icono.en-curso-toggle{color:#c5803a;opacity:1;}
+    .btn-icono.en-curso-toggle:hover{background:rgba(212,148,74,0.2);}
     .btn-icono.editar:hover{background:rgba(106,155,181,0.2);}
     .btn-icono.guardar{color:var(--done);}
     .btn-icono.guardar:hover{background:rgba(110,168,116,0.2);}
@@ -1285,7 +1289,7 @@ function renderizar(){
 /* ─── CREAR ELEMENTO TAREA ─── */
 function crearElementoTarea(tarea){
   const el=document.createElement('div');
-  el.className='tarea'+(tarea.completada?' completada':'');
+  el.className='tarea'+(tarea.completada?' completada':tarea.enCurso?' en-curso':'');
   el.dataset.id=tarea.id;
   const previewTexto=tarea.resolucion&&tarea.resolucion.trim()?`<span class="preview">— ${esc(tarea.resolucion.trim())}</span>`:'';
   const fechaStr=tarea.creadaEn?new Date(tarea.creadaEn).toLocaleString('es-AR',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
@@ -1302,6 +1306,7 @@ function crearElementoTarea(tarea){
         ${fechaStr?`<div class="tarea-fecha">${fechaStr}</div>`:''}
       </div>
       <div class="tarea-acciones">
+        ${!tarea.completada?`<button class="btn-icono en-curso-toggle" data-accion="en-curso" title="${tarea.enCurso?'Quitar En curso':'Marcar En curso'}">▶</button>`:''}
         <button class="btn-icono editar" data-accion="editar">✎</button>
         <button class="btn-icono eliminar" data-accion="eliminar">✕</button>
       </div>
@@ -1416,6 +1421,8 @@ function crearElementoTarea(tarea){
       if(btnRes){let prev=btnRes.querySelector('.preview');const val=e.target.value.trim();if(val&&!prev){prev=document.createElement('span');prev.className='preview';btnRes.appendChild(prev);}if(prev)prev.textContent=val?`— ${val}`:'';}
     },600);
   });
+  const btnEnCurso=el.querySelector('[data-accion="en-curso"]');
+  if(btnEnCurso) btnEnCurso.addEventListener('click',()=>toggleEnCurso(tarea.id,el));
   el.querySelector('[data-accion="editar"]').addEventListener('click',()=>iniciarEdicion(tarea.id,el));
   el.querySelector('[data-accion="eliminar"]').addEventListener('click',()=>eliminarTarea(tarea.id,el));
   el.querySelector('.tarea-texto').addEventListener('dblclick',()=>iniciarEdicion(tarea.id,el));
@@ -1454,13 +1461,26 @@ function iniciarEdicion(id,el){
   inputEdicion.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();confirmar();}if(e.key==='Escape'){e.preventDefault();cancelar();}});
 }
 
+/* ─── TOGGLE EN CURSO ─── */
+function toggleEnCurso(id,el){
+  const tarea=tareas.find(t=>t.id===id);
+  if(!tarea||tarea.completada) return;
+  tarea.enCurso=!tarea.enCurso;
+  apiPut(`/tareas/${id}`,{texto:tarea.texto,completada:tarea.completada,en_curso:tarea.enCurso,resolucion:tarea.resolucion,prioridad:tarea.prioridad,usuario_atendido:tarea.usuario_atendido,categoria:tarea.categoria||''});
+  el.classList.toggle('en-curso',tarea.enCurso);
+  const btn=el.querySelector('[data-accion="en-curso"]');
+  if(btn) btn.title=tarea.enCurso?'Quitar En curso':'Marcar En curso';
+}
+
 /* ─── TOGGLE COMPLETADA ─── */
 function toggleCompletada(id,valor,el){
   const tarea=tareas.find(t=>t.id===id);
   if(!tarea) return;
   tarea.completada=valor;
-  apiPut(`/tareas/${id}`,{texto:tarea.texto,completada:valor,resolucion:tarea.resolucion,prioridad:tarea.prioridad,usuario_atendido:tarea.usuario_atendido,categoria:tarea.categoria||''});
+  if(valor) tarea.enCurso=false;
+  apiPut(`/tareas/${id}`,{texto:tarea.texto,completada:valor,en_curso:tarea.enCurso||false,resolucion:tarea.resolucion,prioridad:tarea.prioridad,usuario_atendido:tarea.usuario_atendido,categoria:tarea.categoria||''});
   el.classList.toggle('completada',valor);
+  el.classList.toggle('en-curso',false);
   actualizarProgreso(); renderizarSugerencias(); actualizarTimeline();
 }
 
@@ -1487,7 +1507,7 @@ function agregarTarea(textoParam){
   } else {
     creadaEn=new Date().toISOString();
   }
-  const nueva={id:generarId(),texto,completada:false,resolucion:'',prioridad,creadaEn,usuario_atendido,categoria};
+  const nueva={id:generarId(),texto,completada:false,enCurso:false,resolucion:'',prioridad,creadaEn,usuario_atendido,categoria};
   tareas.unshift(nueva);
   apiPost('/tareas',{id:nueva.id,texto,completada:false,resolucion:'',prioridad,creada_en:creadaEn,usuario_atendido,categoria});
   input.value=''; document.getElementById('select-categoria').value=''; document.getElementById('input-fecha-tarea').value=''; input.focus(); renderizar();
@@ -1846,7 +1866,7 @@ async function asignarUsuariosHistorico(){
     if(d.ok){
       btn.textContent=`✓ ${d.actualizadas} asignadas`;
       const rows=await apiGet('/tareas');
-      tareas=rows.map(t=>({id:t.id,texto:t.texto,completada:!!t.completada,resolucion:t.resolucion||'',prioridad:t.prioridad||'media',creadaEn:t.creada_en,usuario_atendido:t.usuario_atendido||'',categoria:t.categoria||''}));
+      tareas=rows.map(t=>({id:t.id,texto:t.texto,completada:!!t.completada,resolucion:t.resolucion||'',prioridad:t.prioridad||'media',creadaEn:t.creada_en,usuario_atendido:t.usuario_atendido||'',categoria:t.categoria||'',enCurso:!!t.en_curso}));
       renderDashboard(); renderizar();
       setTimeout(()=>{btn.textContent='👤 Asignar del historial';btn.disabled=false;},4000);
     }
@@ -1863,7 +1883,7 @@ async function categorizarHistorico(){
       btn.textContent=`✓ ${d.actualizadas} categorizadas`;
       /* Recargar tareas del servidor para reflejar los cambios */
       const rows=await apiGet('/tareas');
-      tareas=rows.map(t=>({id:t.id,texto:t.texto,completada:!!t.completada,resolucion:t.resolucion||'',prioridad:t.prioridad||'media',creadaEn:t.creada_en,usuario_atendido:t.usuario_atendido||'',categoria:t.categoria||''}));
+      tareas=rows.map(t=>({id:t.id,texto:t.texto,completada:!!t.completada,resolucion:t.resolucion||'',prioridad:t.prioridad||'media',creadaEn:t.creada_en,usuario_atendido:t.usuario_atendido||'',categoria:t.categoria||'',enCurso:!!t.en_curso}));
       renderDashboard();
       setTimeout(()=>{btn.textContent='✨ Categorizar historial';btn.disabled=false;},4000);
     }
