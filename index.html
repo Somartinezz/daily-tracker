@@ -1490,7 +1490,7 @@ function agregarTarea(textoParam){
   const nueva={id:generarId(),texto,completada:false,resolucion:'',prioridad,creadaEn,usuario_atendido,categoria};
   tareas.unshift(nueva);
   apiPost('/tareas',{id:nueva.id,texto,completada:false,resolucion:'',prioridad,creada_en:creadaEn,usuario_atendido,categoria});
-  input.value=''; document.getElementById('select-categoria').value=''; input.focus(); renderizar();
+  input.value=''; document.getElementById('select-categoria').value=''; document.getElementById('input-fecha-tarea').value=''; input.focus(); renderizar();
 }
 
 /* ─── MEMORIA ─── */
