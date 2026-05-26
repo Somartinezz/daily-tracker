@@ -1111,7 +1111,7 @@ document.querySelectorAll('.h-nav-btn').forEach(btn=>{
 async function cargarTareas(){
   const rows = await apiGet('/tareas');
   tareas = rows.map(t=>({
-    id:t.id, texto:t.texto, completada:!!t.completada,
+    id:t.id, texto:t.texto, completada:!!t.completada, enCurso:!!t.en_curso,
     resolucion:t.resolucion||'', prioridad:t.prioridad||'media',
     creadaEn:t.creada_en, usuario_atendido:t.usuario_atendido||'',
     categoria:t.categoria||''
@@ -1351,6 +1351,7 @@ function crearElementoTarea(tarea){
       input.value=tarea.usuario_atendido||'';
       input.placeholder='Nombre usuario…';
       input.maxLength=80;
+      input.setAttribute('list','lista-usuarios-datalist');
       el_badge.replaceWith(input);
       input.focus(); input.select();
       function guardar(){
