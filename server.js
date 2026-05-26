@@ -171,9 +171,12 @@ app.get('/{*path}', requireAuth, (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 const db = require('./db');
-db.query("ALTER TABLE tareas ADD COLUMN IF NOT EXISTS en_curso BOOLEAN DEFAULT FALSE")
-  .catch(e => console.error('Migration en_curso:', e.message));
 
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
-});
+async function start() {
+  await db.query("ALTER TABLE tareas ADD COLUMN IF NOT EXISTS en_curso BOOLEAN DEFAULT FALSE")
+    .catch(e => console.error('Migration en_curso:', e.message));
+  app.listen(PORT, () => {
+    console.log(`Servidor corriendo en http://localhost:${PORT}`);
+  });
+}
+start();

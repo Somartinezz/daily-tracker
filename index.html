@@ -254,8 +254,10 @@
     .btn-icono{width:28px;height:28px;border:none;border-radius:6px;background:transparent;cursor:pointer;font-size:0.88rem;display:flex;align-items:center;justify-content:center;transition:all var(--transition);color:inherit;opacity:0.65;}
     .tarea:not(.completada):not(.editando) .btn-icono{color:var(--text-muted);}
     .btn-icono:hover{opacity:1;}
+    .btn-en-curso{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;border:1px solid #e0a832;background:transparent;color:#b07820;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:all var(--transition);}
+    .btn-en-curso:hover{background:rgba(212,148,74,0.15);}
+    .tarea.en-curso .btn-en-curso{background:#f0c040;border-color:#c89820;color:#5a3e10;font-weight:600;}
     .btn-icono.en-curso-toggle{color:#c5803a;}
-    .tarea.en-curso .btn-icono.en-curso-toggle{color:#c5803a;opacity:1;}
     .btn-icono.en-curso-toggle:hover{background:rgba(212,148,74,0.2);}
     .btn-icono.editar:hover{background:rgba(106,155,181,0.2);}
     .btn-icono.guardar{color:var(--done);}
@@ -1306,7 +1308,7 @@ function crearElementoTarea(tarea){
         ${fechaStr?`<div class="tarea-fecha">${fechaStr}</div>`:''}
       </div>
       <div class="tarea-acciones">
-        ${!tarea.completada?`<button class="btn-icono en-curso-toggle" data-accion="en-curso" title="${tarea.enCurso?'Quitar En curso':'Marcar En curso'}">▶</button>`:''}
+        ${!tarea.completada?`<button class="btn-en-curso" data-accion="en-curso">▶ ${tarea.enCurso?'En curso':'En curso'}</button>`:''}
         <button class="btn-icono editar" data-accion="editar">✎</button>
         <button class="btn-icono eliminar" data-accion="eliminar">✕</button>
       </div>
@@ -1421,7 +1423,7 @@ function crearElementoTarea(tarea){
       if(btnRes){let prev=btnRes.querySelector('.preview');const val=e.target.value.trim();if(val&&!prev){prev=document.createElement('span');prev.className='preview';btnRes.appendChild(prev);}if(prev)prev.textContent=val?`— ${val}`:'';}
     },600);
   });
-  const btnEnCurso=el.querySelector('[data-accion="en-curso"]');
+  const btnEnCurso=el.querySelector('.btn-en-curso');
   if(btnEnCurso) btnEnCurso.addEventListener('click',()=>toggleEnCurso(tarea.id,el));
   el.querySelector('[data-accion="editar"]').addEventListener('click',()=>iniciarEdicion(tarea.id,el));
   el.querySelector('[data-accion="eliminar"]').addEventListener('click',()=>eliminarTarea(tarea.id,el));
@@ -1468,8 +1470,6 @@ function toggleEnCurso(id,el){
   tarea.enCurso=!tarea.enCurso;
   apiPut(`/tareas/${id}`,{texto:tarea.texto,completada:tarea.completada,en_curso:tarea.enCurso,resolucion:tarea.resolucion,prioridad:tarea.prioridad,usuario_atendido:tarea.usuario_atendido,categoria:tarea.categoria||''});
   el.classList.toggle('en-curso',tarea.enCurso);
-  const btn=el.querySelector('[data-accion="en-curso"]');
-  if(btn) btn.title=tarea.enCurso?'Quitar En curso':'Marcar En curso';
 }
 
 /* ─── TOGGLE COMPLETADA ─── */
