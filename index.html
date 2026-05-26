@@ -1693,6 +1693,7 @@ function renderizarStock(){
       const td=document.createElement('td'), input=document.createElement('input');
       input.type='text'; input.className='stock-cell-input';
       input.value=maq[campo]||''; input.placeholder=PLACEHOLDERS[ci]; input.maxLength=80;
+      if(campo==='usuario') input.setAttribute('list','lista-usuarios-datalist');
       let _t=null;
       input.addEventListener('input',()=>{maquinas[idx][campo]=input.value;clearTimeout(_t);_t=setTimeout(()=>apiPut(`/maquinas/${maq.id}`,{host:maquinas[idx].host,serial:maquinas[idx].serial,pertenencia:maquinas[idx].pertenencia,usuario:maquinas[idx].usuario,estado:maquinas[idx].estado}),600);});
       if(ci===CAMPOS.length-1) input.addEventListener('keydown',e=>{if(e.key==='Tab'&&!e.shiftKey&&idx===maquinas.length-1){e.preventDefault();agregarMaquina();}});
